@@ -2,7 +2,7 @@
 authors = ["Evan Foster <evanfost@andrew.cmu.edu>"]
 channels = ["robostack-humble", "conda-forge"]
 name = "LEAP-sprayer"
-platforms = ["osx-arm64", { name = "jetson-orin-nano", platform = "linux-aarch64", cuda = "12.6" }]
+platforms = ["osx-arm64", { name = "jetson-orin-nano", platform = "linux-aarch64", cuda = "12.6" }, "linux-64"]
 version = "0.1.0"
 
 [tasks]
