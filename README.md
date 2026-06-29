@@ -66,6 +66,6 @@ It should now be available whenever you run commands via `pixi run` or in the `p
 ### Creating a new node
 
 ```bash
-pixi run ros2 pkg create --build-type ament_python --destination-directory src --node-name my_node my_package
+pixi run pkg-create my_package my_node
 ```
 This will create a new node named `my_node` in the `my_package` package.

@@ -8,6 +8,10 @@ version = "0.1.0"
 [tasks]
 build = {cmd = "colcon build --symlink-install", inputs = ["src"]}
 
+[tasks.pkg-create]
+args = ["package", "name"]
+cmd = "ros2 pkg create --build-type ament_python --destination-directory src --node-name {{ name }} {{ package }}"
+
 [dependencies]
 python = "~=3.11.0"
 ros-humble-desktop = ">=0.10.0,<0.11"
