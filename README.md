@@ -19,6 +19,16 @@ cd leap_sprayer_ws
 pixi install
 ```
 
+To build all the nodes, run
+```bash
+pixi run build
+```
+
+This command should also be run automatically if you run other custom `pixi run` commmands
+because they will declare a `depends-on` for the build command.
+Builds are cached when running this commands, so if no changes are made to the `src` folder,
+no build will have to be run.
+
 ## Supported platforms
 
 This project currently tries to support the following platforms,
