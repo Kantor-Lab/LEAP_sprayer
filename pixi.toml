@@ -6,7 +6,7 @@ platforms = ["osx-arm64", { name = "jetson-orin-nano", platform = "linux-aarch64
 version = "0.1.0"
 
 [tasks]
-build = {cmd = "colcon build --symlink-install", inputs = ["src"]}
+build = {cmd = "colcon build --symlink-install", inputs = ["src"], outputs = ["build", "install"]}
 
 [tasks.pkg-create]
 args = ["package", "name"]
