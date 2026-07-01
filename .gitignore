@@ -6,3 +6,6 @@
 install/
 log/
 build/
+
+# python outputs
+__pycache__/
