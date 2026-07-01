@@ -9,3 +9,8 @@ build/
 
 # python outputs
 __pycache__/
+
+# editor files
+.idea/
+.vscode/
+.zed/
