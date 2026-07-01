@@ -154,10 +154,10 @@ if __name__ == '__main__':
     import subprocess
 
     try:
-        cam_process = subprocess.Popen(["ros2", "run", "camera", cam_types[cam_type]],
-                                       stdout=subprocess.PIPE)
+        cam_process = subprocess.Popen(["ros2", "run", "camera", cam_types[cam_type], "--ros-args", "-r", "/image_raw:=/image"],
+                                       stdout=sys.stdout, stderr=sys.stderr)
         segment_process = subprocess.Popen(["ros2", "run", "detect", segment_types[segment_type]],
-                                           stdout=subprocess.PIPE)
+                                           stdout=sys.stdout, stderr=sys.stderr)
         if launch_viewer:
             print("Starting viewer")
             viewer_process = subprocess.Popen(["ros2", "run", "rqt_image_view", "rqt_image_view"])

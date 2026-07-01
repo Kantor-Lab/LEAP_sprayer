@@ -13,8 +13,8 @@ class DebugCameraNode(Node):
 
         self.get_logger().warn('Running debug camera node, which does not report depth (green color channel)')
 
-        self.image_publisher_ = self.create_publisher(Image, 'image_raw', 10)
-        self.depth_publisher_ = self.create_publisher(Image, 'depth_raw', 10)
+        self.image_publisher_ = self.create_publisher(Image, '/image_raw', 10)
+        self.depth_publisher_ = self.create_publisher(Image, '/depth_raw', 10)
 
         timer_period = 1.0 / 30.0
         self.timer = self.create_timer(timer_period, self.timer_callback)

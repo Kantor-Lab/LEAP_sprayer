@@ -1,5 +1,5 @@
 import cv2
-from cv_bridge import CvBridge
+from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -26,10 +26,9 @@ def segment_green(bgr: np.ndarray) -> np.ndarray:
     return mask
 
 def extract_individuals(mask: np.ndarray) -> np.ndarray:
-    assert mask.ndim == 3 and mask.shape[-1] == 1
+    assert mask.ndim == 2
 
     min_area = 100
-
     label_count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
 
     curr_offset: int = 0
@@ -57,9 +56,9 @@ class OwlSegmenterNode(Node):
         super().__init__('owl_segmenter')
 
         self.bridge = CvBridge()
-        self.image_sub_ = self.create_subscription(Image, 'image', self.image_callback, qos_profile=10)
+        self.image_sub_ = self.create_subscription(Image, '/image', self.image_callback, qos_profile=10)
 
-        self.segmentation_pub_ = self.create_publisher(Image, 'segmentation', 10)
+        self.segmentation_pub_ = self.create_publisher(Image, '/segmentation', 10)
 
     def image_callback(self, msg):
         bgr = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -69,7 +68,7 @@ class OwlSegmenterNode(Node):
         labels = extract_individuals(mask)
 
         timestamp = msg.header.stamp
-        labels_msg = self.bridge.cv2_to_imgmsg(labels, '16UC1')
+        labels_msg = self.bridge.cv2_to_imgmsg(cv2.cvtColor((labels > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR), 'bgr8')
         labels_msg.header.stamp = timestamp
         self.segmentation_pub_.publish(labels_msg)
 
