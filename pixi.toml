@@ -10,6 +10,7 @@ scripts = ["install/setup.sh"]
 
 [tasks]
 build = {cmd = "colcon build --symlink-install", inputs = ["src"], outputs = ["build", "install"]}
+launch = {cmd = "./launch_system.py", depends-on = [{task = "build"}]}
 
 [tasks.pkg-create]
 args = ["package", "name"]
