@@ -31,7 +31,16 @@ class DebugCameraNode(Node):
             self.get_logger().warn('DEBUG_CAMERA_PORT unset, starting debug stream from 0')
             cam_port = 0
 
-        self.cap = cv2.VideoCapture(cam_port)
+        while cam_port > 0:
+            self.cap = cv2.VideoCapture(cam_port)
+            if not self.cap.isOpened():
+                self.get_logger().warn(f"Couldn't open camera at port {cam_port}, trying lower value")
+                cam_port -= 1
+            else:
+                break
+        else:
+            self.get_logger().error("Couldn't open camera at port 0")
+
         self.bridge = CvBridge()
 
     def timer_callback(self):
