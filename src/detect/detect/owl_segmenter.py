@@ -3,7 +3,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.time import Time
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import Image
 
 
@@ -56,27 +56,20 @@ class OwlSegmenterNode(Node):
         super().__init__('owl_segmenter')
 
         self.bridge = CvBridge()
-        self.image_sub_ = self.create_subscription(Image, '/image', self.image_callback, qos_profile=10)
+        image_qos = QoSProfile(
+            # if you want this to be BEST_EFFORT, you may need to increase system UDP buffer limits
+            # because images seem to be too large to handle reliably, so every frame gets dropped
+            # sincerely, someone who spent too much time troubleshooting this
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1,
+        )
+        self.image_sub_ = self.create_subscription(
+            Image, '/image', self.image_callback, qos_profile=image_qos)
 
         self.segmentation_pub_ = self.create_publisher(Image, '/segmentation', 10)
 
-        self.has_warned_about_unsynced_framerate = False
-
     def image_callback(self, msg: Image) -> None:
-        assumed_framerate = 30
-        assumed_time_btw_frames_nano = 1_000_000_000 // assumed_framerate
-        msg_time = Time(
-            seconds=msg.header.stamp.sec,
-            nanoseconds=msg.header.stamp.nanosec,
-            clock_type=self.get_clock().clock_type
-        )
-        now_time = self.get_clock().now()
-        if int((now_time - msg_time).nanoseconds) > assumed_time_btw_frames_nano:
-            if not self.has_warned_about_unsynced_framerate:
-                self.get_logger().warn(f"OWL segmenter unable to keep up with image framerate, some frames may be dropped to keep up")
-                self.has_warned_about_unsynced_framerate = True
-            return
-
         bgr = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
 
         mask = segment_green(bgr)
