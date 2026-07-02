@@ -31,25 +31,22 @@ def extract_individuals(mask: np.ndarray) -> np.ndarray:
     min_area = 100
     label_count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
 
-    curr_offset: int = 0
+    areas = stats[:, cv2.CC_STAT_AREA]
+    keep = areas >= min_area
+    keep[0] = False # drop background (doesn't matter since it was 0 anyway)
 
-    zeros = np.zeros_like(labels, dtype=labels.dtype)
+    new_label_lookup = np.zeros(label_count, dtype=labels.dtype)
+    # new sequential ids 0–max val
+    new_label_lookup[keep] = np.arange(1, keep.sum() + 1, dtype=labels.dtype)
 
-    for i in range(1, label_count): # skip the background (label 0)
-        if stats[i][cv2.CC_STAT_AREA] < min_area:
-            labels = np.where(labels == i, zeros, labels)
-            curr_offset += 1
-        else:
-            labels = np.where(labels == i, labels - curr_offset, labels)
+    new_labels = new_label_lookup[labels]
 
-    # confirming ascending labels
-    unique_labels = np.unique(labels)
-    for i in range(1, len(unique_labels)):
-        assert unique_labels[i] == unique_labels[i - 1] + 1,\
-            (f"Labels were not left in ascending order, new label {unique_labels[i]} followed "
-             f"{unique_labels[i - 1]} in {unique_labels = }")
+    # confirming correctly ascending labels
+    unique_labels = np.unique(new_labels)
+    assert np.array_equal(unique_labels, np.arange(unique_labels.size)), \
+        f"Labels are not correctly ascending: {unique_labels}"
 
-    return labels
+    return new_labels
 
 class OwlSegmenterNode(Node):
     def __init__(self):
