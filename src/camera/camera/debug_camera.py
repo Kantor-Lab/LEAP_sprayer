@@ -16,7 +16,7 @@ class DebugCameraNode(Node):
         self.image_publisher_ = self.create_publisher(Image, '/image_raw', 10)
         self.depth_publisher_ = self.create_publisher(Image, '/depth_raw', 10)
 
-        timer_period = 1.0 / 30.0
+        timer_period = 1.0 / 10.0
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
         cam_port = os.getenv('DEBUG_CAMERA_PORT')
