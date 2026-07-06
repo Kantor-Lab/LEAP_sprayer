@@ -19,6 +19,15 @@ cd leap_sprayer_ws
 pixi install
 ```
 
+On Linux machines, you should also follow [these instructions](https://github.com/realsenseai/realsense-ros/issues/1408#issuecomment-698128999)
+to support using an Intel Realsense.
+That basically boils down to running
+
+```bash
+sudo curl "https://raw.githubusercontent.com/realsenseai/librealsense/refs/heads/master/config/99-realsense-libusb.rules" \
+        -o /etc/udev/rules.d/99-realsense-libusb.rules
+```
+
 To build all the nodes, run
 ```bash
 pixi run build
