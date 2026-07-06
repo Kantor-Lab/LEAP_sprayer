@@ -13,27 +13,56 @@ The detection stack takes in camera images and robot motion to detect and track
 weeds while driving.
 
 ```mermaid
-graph LR
-  tf_cam([Camera Transform])
-  velo_robot([Robot Velocity])
+graph TB
+  cam(Camera) --> cam_node
 
-  cam[Camera]
-  
-  subgraph Weed Detection
-    direction LR
-    seg[Segmentation]
-    bound[3D Bounding]
-    seg -->|weed_detection/segment_mask| bound
+  cam_node[camera_node]
+  cam_node -->|sensor_msgs/msg/Image| depth[//camera/depth/image/]
+  cam_node -->|sensor_msgs/msg/Image| color[//camera/color/image/]
+  cam_node -->|sensor_msgs/msg/CameraInfo| info[//camera/cam_info/]
+
+  %% styling ltr
+  depth ~~~ weed_detection
+  info ~~~ weed_detection
+  color ~~~ weed_detection
+  depth ~~~ color
+  info ~~~ color
+
+  color --> detect
+  detect[Detector]
+  detect -->|vision_msgs/msg/Detection2DArray| detections[//detections2D/]
+
+  project[Projection Node]
+  subgraph weed_detection[Weed Detection]
+    detect
+    detections --> project
   end
-  cam -->|camera/color/image| seg
-  cam -->|camera/depth/image| bound
-  cam -->|camera/cam_info| bound
-  tf_cam -->|tf_static/camera| bound
+  
+  depth --> project
+  info --> project
 
-  track[Track In 3D]
-  bound -->|weed_detection/bbox| track
-  tf_cam -->|tf_static/camera| track
-  velo_robot -->|odom/velocity| track
+  project -->|vision_msgs/msg/Detection3DArray| detections3D_raw[//detections3D_raw/]
+
+  tracker[Tracker Node]
+  
+  urdf[/"/tf<br>/tf_static"/] --> tracker
+  odom[//odometry/] ---> tracker
+  detections3D_raw ---> tracker
+
+  %% styling
+  project ~~~ tracker
+  odom ~~~ urdf
+  detections3D_raw ~~~ tracker
+
+  tracker -->|vision_msgs/msg/Detection3DArray| detections3D[/"/detections3D<br>relative to boom frame"/]
+
+  subgraph sprayer[Spray Control]
+    direction TB
+    spray_control[Spray Serial Control Node] -->|USB Serial Communication| uno(Arduino UNO)
+    uno -->|I2C Communication| spray_driver_board_one(Driver Board 1)
+    uno -->|I2C Communication| spray_driver_board_two(Driver Board 2)
+  end
+  detections3D --> sprayer
 ```
 
 ### The Camera
@@ -52,7 +81,7 @@ share a timestamp to indicate this correspondence.
 
 Weed detection could possibly be more complex than the above diagram,
 using data like the depth image to detect more accurately.
-So long as the output is a 3D bounding box relative to the robot frame,
+So long as the outputs are 3D bounding box relative to the robot frame,
 this implementation can remain opaque to the rest of the system.
 
 As of right now, our explored approaches utilize just color images
@@ -60,7 +89,7 @@ when detecting and segmenting weeds, so by adding the depth information
 separately, these pipelines can remain unaware of the depth information.
 The 3D Bounding node will just use the segmented pixels and their corresponding depth values to estimate the bounding box.
 
-### Track In 3D
+### Tracker
 
 This node ingests the 3D bounding boxes found on each frame
 and uses knowledge of past detections to extrapolate the positions of weeds
