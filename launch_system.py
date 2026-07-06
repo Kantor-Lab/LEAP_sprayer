@@ -74,6 +74,17 @@ DebugCamera = SelectionOption(
     ['debug']
 )
 
+RealsenseCamera = SelectionOption(
+    Camera(
+        'launch realsense2_camera rs_launch.py',
+        'camera/color/image_raw',
+        '/camera/aligned_depth_to_color/image_raw',
+        '/camera/color/camera_info'
+    ),
+    'Realsense Camera',
+    ['realsense', 'rs']
+)
+
 OpenWeedLocator = SelectionOption(
     Detector(
         'run detect owl_segmenter'
