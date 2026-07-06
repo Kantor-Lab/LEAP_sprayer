@@ -1,7 +1,88 @@
 #!/usr/bin/env python3
+import sys,tty,termios
+from typing import cast, Self, Type
+
+class LaunchCommand():
+    def __init__(self, has_launch_script: bool, package_name: str, node_name: str | None = None, launch_script: str | None = None):
+        assert (has_launch_script == (launch_script is not None)) and (has_launch_script == (node_name is None)), "invalid launch command initialization"
+        self.has_launch_script = has_launch_script
+        self.package_name = package_name
+        self.node_name = node_name
+        self.launch_script = launch_script
+
+    @classmethod
+    def from_command(cls: Type[Self], command: str) -> Self:
+        split = command.split(' ')
+        assert len(split) == 3, f"invalid launch command (wrong arg count): {command}"
+        has_launch_script = split[0] == 'launch'
+        package_name = split[1]
+        node_name = split[2] if not has_launch_script else None
+        launch_script = split[2] if has_launch_script else None
+        return cls(has_launch_script, package_name, node_name, launch_script)
+
+    def ros2_command(self) -> tuple[str, str, str]:
+        if self.has_launch_script:
+            assert self.node_name is None
+            return 'launch', self.package_name, str(self.launch_script)
+        else:
+            assert self.launch_script is None
+            return 'run', self.package_name, str(self.node_name)
+
+class Launchable():
+    def __init__(self, launch_command: str):
+        self.launch_command = LaunchCommand.from_command(launch_command)
+
+    def ros2_command(self) -> tuple[str, str, str]:
+        return self.launch_command.ros2_command()
+
+class Camera(Launchable):
+    def __init__(self, launch_command: str, image_topic: str, depth_topic: str, cam_info_topic: str):
+        super().__init__(launch_command)
+        self.image_topic = image_topic
+        self.depth_topic = depth_topic
+        self.cam_info_topic = cam_info_topic
+
+class Detector(Launchable):
+    def __init__(self, launch_command: str):
+        super().__init__(launch_command)
+
+class SelectionOption():
+    option_list: list[Self] = []
+    
+    def __init__(self, launchable: Launchable, name: str, aliases: list[str]):
+        self.launchable = launchable
+        self.name = name
+        self.aliases = aliases
+        SelectionOption.option_list.append(self)
+
+    @staticmethod
+    def get_options(target_type: Type) -> list[Self]:
+        return [option for option in SelectionOption.option_list if isinstance(option.launchable, target_type)]
+
+    @staticmethod
+    def lookup_option(alias: str) -> Launchable | None:
+        return next((option.launchable for option in SelectionOption.option_list if alias in option.aliases or alias == option.name), None)
+
+DebugCamera = SelectionOption(
+    Camera(
+        'run camera debug_camera',
+        '/image_raw',
+        '/depth_raw',
+        '/camera_info'
+    ),
+    'Debug Camera',
+    ['debug']
+)
+
+OpenWeedLocator = SelectionOption(
+    Detector(
+        'run detect owl_segmenter'
+    ),
+    'Open Weed Locator',
+    ['owl', 'open_weed_locator']
+)
 
 # credit to https://stackoverflow.com/a/69065464 for a lot of this
-import sys,tty,termios
 
 # Commands and escape codes
 END_OF_TEXT = chr(3)  # CTRL+C (prints nothing)
@@ -125,38 +206,48 @@ if __name__ == '__main__':
                 print(f"Unrecognized argument: \"{arg}\"")
                 sys.exit(1)
 
-    cam_types = {
-        'debug' : 'debug_camera'
-    }
     if len(args) > 0:
-        cam_type = args.pop(0)
-        if cam_type not in cam_types.keys():
-            raise ValueError(f"Unexpected cam_type \"{cam_type}\"")
-        print("Camera Type:", cam_type)
+        cam_type_str = args.pop(0)
+        cam_type = SelectionOption.lookup_option(cam_type_str)
+        if cam_type is None or not isinstance(cam_type, Camera):
+            raise ValueError(f"Unexpected cam_type \"{cam_type_str}\"")
     else:
-        cam_type = select_item("Camera Type: ", list(cam_types.keys()))
+        cam_type = SelectionOption.lookup_option(select_item("Camera Type: ", list(opt.name for opt in SelectionOption.get_options(Camera))))
+        assert cam_type is not None and isinstance(cam_type, Camera)
 
-    segment_types = {
-        'OpenWeedLocator' : 'owl_segmenter'
-    }
+    cam_type = cast(Camera, cam_type)
+
+    print(f"Camera command: ros2 {' '.join(cam_type.ros2_command())}")
+        
     if len(args) > 0:
-        segment_type = args.pop(0)
-        if segment_type == 'owl': # nice shorthand for convenience
-            segment_type = 'OpenWeedLocator'
-        elif segment_type not in segment_types.keys():
-            raise ValueError(f"Unexpected segment_type \"{segment_type}\"")
-        print("Segment Type:", segment_type)
+        detector_type_str = args.pop(0)
+        detector_type = SelectionOption.lookup_option(detector_type_str)
+        if detector_type is None or not isinstance(detector_type, Detector):
+            raise ValueError(f"Unexpected detector_type \"{detector_type_str}\"")
     else:
-        segment_type = select_item("Segment Type: ", list(segment_types.keys()))
+        detector_type = SelectionOption.lookup_option(select_item("Detector Type: ", list(opt.name for opt in SelectionOption.get_options(Detector))))
+        assert detector_type is not None and isinstance(detector_type, Detector)
+
+    detector_type = cast(Detector, detector_type)
+
+    print(f"Detector command: ros2 {' '.join(detector_type.ros2_command())}")
 
     print("Starting...")
 
     import subprocess
 
+    cam_process = None
+    detector_process = None
+    viewer_process = None
+
     try:
-        cam_process = subprocess.Popen(["ros2", "run", "camera", cam_types[cam_type], "--ros-args", "-r", "/image_raw:=/image"],
+        cam_process = subprocess.Popen(["ros2", *cam_type.ros2_command()],
                                        stdout=sys.stdout, stderr=sys.stderr)
-        segment_process = subprocess.Popen(["ros2", "run", "detect", segment_types[segment_type]],
+        detector_process = subprocess.Popen(["ros2", *detector_type.ros2_command(),
+            "--ros-args",
+            "-r", f"/image:={cam_type.image_topic}",
+            "-r", f"/depth:={cam_type.depth_topic}",
+            "-r", f"/cam_info:={cam_type.cam_info_topic}"],
                                            stdout=sys.stdout, stderr=sys.stderr)
         if launch_viewer:
             print("Starting viewer")
@@ -168,20 +259,14 @@ if __name__ == '__main__':
     finally:
         print("\rStopping...")
         procs = []
-        try:
+        if cam_process is not None:
             procs.append(cam_process)
-        except NameError:
-            pass
 
-        try:
-            procs.append(segment_process)
-        except NameError:
-            pass
+        if detector_process is not None:
+            procs.append(detector_process)
 
-        try:
+        if viewer_process is not None:
             procs.append(viewer_process)
-        except NameError:
-            pass
 
         for proc in procs:
             if proc.poll() is None:
