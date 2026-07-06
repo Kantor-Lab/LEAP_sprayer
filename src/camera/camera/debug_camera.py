@@ -16,9 +16,6 @@ class DebugCameraNode(Node):
         self.image_publisher_ = self.create_publisher(Image, '/image_raw', 10)
         self.depth_publisher_ = self.create_publisher(Image, '/depth_raw', 10)
 
-        timer_period = 1.0 / 10.0
-        self.timer = self.create_timer(timer_period, self.timer_callback)
-
         cam_port = os.getenv('DEBUG_CAMERA_PORT')
         if cam_port:
             try:
@@ -42,6 +39,9 @@ class DebugCameraNode(Node):
             self.get_logger().error("Couldn't open camera at port 0")
 
         self.bridge = CvBridge()
+
+        timer_period = 1.0 / 10.0
+        self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
         ret, frame = self.cap.read()
