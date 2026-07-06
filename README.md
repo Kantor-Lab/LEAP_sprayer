@@ -36,7 +36,6 @@ based on where development occurs on it and where it is deployed.
 
 - Jetpack 6 (Ubuntu 22.04) on Jetson Orin Nano (AArch64)
 - Ubuntu 22.04 (x86-64)
-- macOS 26 (ARM64)
 
 Other platforms may work properly.
 If you try to run `pixi install` on a different platform,
