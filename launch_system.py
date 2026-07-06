@@ -203,6 +203,7 @@ if __name__ == '__main__':
     args = sys.argv[1:]
 
     launch_viewer = False
+    launch_foxglove = False
 
     while len(args) > 0 and args[0].startswith('-'):
         arg = args.pop(0)
@@ -213,6 +214,8 @@ if __name__ == '__main__':
                 sys.exit(0)
             case '-v' | '--viewer':
                 launch_viewer = True
+            case '-f' | '--foxglove':
+                launch_foxglove = True
             case _:
                 print(f"Unrecognized argument: \"{arg}\"")
                 sys.exit(1)
@@ -250,6 +253,7 @@ if __name__ == '__main__':
     cam_process = None
     detector_process = None
     viewer_process = None
+    foxglove_process = None
 
     try:
         cam_process = subprocess.Popen(["ros2", *cam_type.ros2_command()],
@@ -263,6 +267,10 @@ if __name__ == '__main__':
         if launch_viewer:
             print("Starting viewer")
             viewer_process = subprocess.Popen(["ros2", "run", "rqt_image_view", "rqt_image_view"])
+
+        if launch_foxglove:
+            print("Starting foxglove")
+            foxglove_process = subprocess.Popen(["ros2", "launch", "foxglove_bridge", "foxglove_bridge_launch.xml"])
 
         input("Running. Press enter to stop...")
     except KeyboardInterrupt:
@@ -278,6 +286,9 @@ if __name__ == '__main__':
 
         if viewer_process is not None:
             procs.append(viewer_process)
+
+        if foxglove_process is not None:
+            procs.append(foxglove_process)
 
         for proc in procs:
             if proc.poll() is None:
