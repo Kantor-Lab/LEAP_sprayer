@@ -28,6 +28,7 @@ class DebugCameraNode(Node):
             self.get_logger().warn('DEBUG_CAMERA_PORT unset, starting debug stream from 0')
             cam_port = 0
 
+        self.cap: cv2.VideoCapture | None = None
         while cam_port > 0:
             self.cap = cv2.VideoCapture(cam_port)
             if not self.cap.isOpened():
@@ -44,6 +45,7 @@ class DebugCameraNode(Node):
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
+        assert self.cap is not None, "timer callback called before cap is initialized"
         ret, frame = self.cap.read()
         if ret:
             timestamp = self.get_clock().now().to_msg()
@@ -59,7 +61,8 @@ class DebugCameraNode(Node):
             self.depth_publisher_.publish(flat_depth_msg)
 
     def destroy_node(self):
-        self.cap.release()
+        if self.cap is not None:
+            self.cap.release()
         super().destroy_node()
 
 def main():
