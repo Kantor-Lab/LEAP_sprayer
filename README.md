@@ -45,14 +45,31 @@ based on where development occurs on it and where it is deployed.
 
 - Jetpack 6 (Ubuntu 22.04) on Jetson Orin Nano (AArch64)
 - Ubuntu 22.04 (x86-64)
+- macOS (arm64) for development
 
-Other platforms may work properly.
+> [!WARNING]
+> macOS is only supported to the extent that `pixi run build` should work
+> and you should have access to ros tools while developing.
+> This is mainly so that editors can see the ros dependencies
+> and provide proper code completion and linting.
+> Intel Realsense is known to be incredibly buggy and often not work at all
+> on macOS, but we include versions of libraries so that message types
+> are available.
+
+### Other platforms
+
+Other platforms will likely not work properly, but it may be possible to get it to work.
 If you try to run `pixi install` on a different platform,
 you will receive an error with instructions on how to add your platform to the `pixi.toml` file
 (something like `pixi workspace platform add <your-unsupported-platform>`).
-If you feel your platform should be supported,
-you can open a pull request with the changes made by `pixi workspace platform add`
-after confirming features work properly on your platform.
+
+However, for non-Linux platforms, the `ros-humble-realsense2-camera` package is not available,
+so it had to be built from source to work on arm64 macOS here.
+[This](https://github.com/BruceMcRooster/ros-humble/tree/py311-support-rewound)
+might be a good starting point for building the package from source on other platforms.
+You can add local packages by giving the path in the `pixi.toml` channels section.
+See [commit f1f5494](https://github.com/Kantor-Lab/LEAP_sprayer/commit/f1f5494cbfe3cfef6254d7a7d2749c1cd5b16e6e)
+for more details on this.
 
 ## Development
 
