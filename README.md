@@ -38,6 +38,31 @@ because they will declare a `depends-on` for the build command.
 Builds are cached when running this commands, so if no changes are made to the `src` folder,
 no build will have to be run.
 
+To launch the system, run
+```bash
+pixi run launch
+```
+
+You can optionally pass arguments to the underlying [`detection.launch.py`](./detection.launch.py) to startup different things.
+For example, to use the Realsense camera instead of the debug camera, run
+```bash
+pixi run launch camera:=realsense
+```
+
+The `launch` task supports the following arguments:
+- `camera`: the camera to use
+- `detector`: the detector to use for detecting weeds
+- `image_viewer`: (`true`/`false`) whether to launch the RQT image viewer
+- `foxglove`: (`true`/`false`) whether to launch the Foxglove bridge
+
+Additionally, `camera:=debug` will read from the `DEBUG_CAMERA_PORT` environment variable if set.
+This gets passed to OpenCV's `VideoCapture` constructor, so it can be used to specify the camera device to use when testing.
+Something like
+```bash
+DEBUG_CAMERA_PORT=1 pixi run launch
+```
+should do the trick.
+
 ## Supported platforms
 
 This project currently tries to support the following platforms,
