@@ -1,13 +1,18 @@
+from typing import cast
+
 import cv2
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
 import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import Image
+from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 
 
-def segment_green(bgr: np.ndarray) -> np.ndarray:
+def segment_green(
+    bgr: np.ndarray[tuple[int, int, int], np.dtype[np.uint8]]
+) -> np.ndarray[tuple[int, int], np.dtype[np.integer]]:
     assert bgr.ndim == 3 and bgr.shape[-1] == 3
 
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV_FULL)
@@ -17,39 +22,36 @@ def segment_green(bgr: np.ndarray) -> np.ndarray:
     h_low, h_high = (50, 150)
 
     h_channel = hsv[:, :, 0]
-    hsv_mask = cv2.inRange(h_channel, h_low, h_high)
+    hsv_mask = cv2.inRange(h_channel, cast(cv2.typing.MatLike, h_low), cast(cv2.typing.MatLike, h_high))
 
     bgr16 = bgr.astype(np.uint16)
     exg = 2 * bgr16[:, :, 1] - bgr16[:, :, 2] - bgr16[:, :, 0]
 
-    exg_mask = cv2.inRange(exg, exg_low, exg_high)
+    exg_mask = cv2.inRange(exg, cast(cv2.typing.MatLike, exg_low), cast(cv2.typing.MatLike, exg_high))
 
     mask = cv2.bitwise_and(exg_mask, hsv_mask)
 
-    return mask
+    assert mask.ndim == 2
 
-def extract_individuals(mask: np.ndarray) -> np.ndarray:
+    return cast(np.ndarray[tuple[int, int], np.dtype[np.integer]], mask)
+
+def extract_bboxes(mask: np.ndarray) -> np.ndarray[tuple[int, int], np.dtype[np.integer]]:
     assert mask.ndim == 2
 
     min_area = 100
-    label_count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    _, _, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
 
-    areas = stats[:, cv2.CC_STAT_AREA]
+    # slice from 1 to not get the background
+    areas = stats[1:, cv2.CC_STAT_AREA]
     keep = areas >= min_area
-    keep[0] = False # drop background (doesn't matter since it was 0 anyway)
 
-    new_label_lookup = np.zeros(label_count, dtype=labels.dtype)
-    # new sequential ids 0–max val
-    new_label_lookup[keep] = np.arange(1, keep.sum() + 1, dtype=labels.dtype)
+    kept_stats = stats[1:][keep]
+    # stats in format [left, top, width, height, ...]
+    bboxes = kept_stats[:, cv2.CC_STAT_LEFT:cv2.CC_STAT_HEIGHT + 1]
 
-    new_labels = new_label_lookup[labels]
-
-    # confirming correctly ascending labels
-    unique_labels = np.unique(new_labels)
-    assert np.array_equal(unique_labels, np.arange(unique_labels.size)), \
-        f"Labels are not correctly ascending: {unique_labels}"
-
-    return new_labels
+    assert bboxes.ndim == 2
+    
+    return cast(np.ndarray[tuple[int, int], np.dtype[np.integer]], bboxes)
 
 class OwlSegmenterNode(Node):
     def __init__(self):
@@ -58,7 +60,8 @@ class OwlSegmenterNode(Node):
         self.bridge = CvBridge()
         image_qos = QoSProfile(
             # if you want this to be BEST_EFFORT, you may need to increase system UDP buffer limits
-            # because images seem to be too large to handle reliably, so every frame gets dropped
+            # or switch to something like zenoh
+            # because images seem to be too large to handle reliably, so every frame gets dropped.
             # sincerely, someone who spent too much time troubleshooting this
             reliability=ReliabilityPolicy.RELIABLE,
             history=HistoryPolicy.KEEP_LAST,
@@ -67,21 +70,47 @@ class OwlSegmenterNode(Node):
         self.image_sub_ = self.create_subscription(
             Image, '/image', self.image_callback, qos_profile=image_qos)
 
-        self.segmentation_pub_ = self.create_publisher(Image, '/segmentation', 10)
+        self.segmentation_pub_ = self.create_publisher(Detection2DArray, '/segmentation', 10)
 
     def image_callback(self, msg: Image) -> None:
         bgr = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
 
         mask = segment_green(bgr)
 
-        labels = extract_individuals(mask)
+        bboxes = extract_bboxes(mask)
 
-        timestamp = msg.header.stamp
-        labels_msg = self.bridge.cv2_to_imgmsg(cv2.compare(labels, 0, cv2.CMP_GT), 'mono8')
-        labels_msg.header.stamp = timestamp
-        self.segmentation_pub_.publish(labels_msg)
+        detections: list[Detection2D] = []
+
+        for bbox in bboxes:
+            left, top, width, height = bbox
+            center_x = left + width / 2
+            center_y = top + height / 2
+            
+            detection = Detection2D()
+            detection.bbox.center.position.x = float(center_x)
+            detection.bbox.center.position.y = float(center_y)
+            detection.bbox.size_x = float(width)
+            detection.bbox.size_y = float(height)
+
+            hyp = ObjectHypothesisWithPose()
+            hyp.hypothesis.class_id = "weed"
+            hyp.hypothesis.score = 1.0
+            detection.results = [hyp]
+            
+            detections.append(detection)
+
+        bboxes_msg = Detection2DArray()
+
+        # so they are synced
+        bboxes_msg.header.stamp = msg.header.stamp
+
+        bboxes_msg.detections = detections
+        
+        self.segmentation_pub_.publish(bboxes_msg)
 
 def main():
+    import sys
+    
     rclpy.init()
 
     node = OwlSegmenterNode()
@@ -91,7 +120,7 @@ def main():
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        print(f"Got error: {e}, shutting down debug camera node")
+        print(f"Got error: {e}, shutting down debug camera node", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():
