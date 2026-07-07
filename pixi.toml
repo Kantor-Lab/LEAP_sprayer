@@ -13,7 +13,15 @@ scripts = ["install/setup.sh"]
 
 [tasks]
 build = {cmd = "colcon build --symlink-install", inputs = ["src"], outputs = ["build", "install"]}
-launch = {cmd = "{% if not pixi.is_linux %}echo \"WARNING: not all features work on non-Linux platforms\" && {% endif %}./launch_system.py", depends-on = [{task = "build"}]}
+
+[tasks.launch]
+cmd = """
+{% if not pixi.is_linux %}\
+echo \"WARNING: not all features work on non-Linux platforms\" && \
+{% endif %}\
+ros2 launch detection.launch.py
+"""
+depends-on = [{task = "build"}]
 
 [tasks.pkg-create]
 args = ["package", "name"]
