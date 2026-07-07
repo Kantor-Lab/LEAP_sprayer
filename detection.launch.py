@@ -98,11 +98,11 @@ def evaluate_args(context: LaunchContext, *args, **kwargs) -> list[LaunchDescrip
     return camera_nodes + detector_nodes
 
 def generate_launch_description() -> LaunchDescription:
-    launch_rqt = LaunchConfiguration('rqt')
+    launch_rqt = LaunchConfiguration('image_viewer')
     launch_foxglove = LaunchConfiguration('foxglove')
 
     return LaunchDescription([
-        DeclareLaunchArgument('rqt', default_value='false'),
+        DeclareLaunchArgument('image_viewer', default_value='false'),
         DeclareLaunchArgument('foxglove', default_value='false'),
         DeclareLaunchArgument('camera', default_value='debug'),
         DeclareLaunchArgument('detector', default_value='owl'),
