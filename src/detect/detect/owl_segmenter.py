@@ -70,7 +70,7 @@ class OwlSegmenterNode(Node):
         self.image_sub_ = self.create_subscription(
             Image, '/image', self.image_callback, qos_profile=image_qos)
 
-        self.segmentation_pub_ = self.create_publisher(Detection2DArray, '/segmentation', 10)
+        self.detections2D_pub_ = self.create_publisher(Detection2DArray, '/detections2D', 10)
 
     def image_callback(self, msg: Image) -> None:
         bgr = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -106,7 +106,7 @@ class OwlSegmenterNode(Node):
 
         bboxes_msg.detections = detections
         
-        self.segmentation_pub_.publish(bboxes_msg)
+        self.detections2D_pub_.publish(bboxes_msg)
 
 def main():
     import sys
