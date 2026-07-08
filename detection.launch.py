@@ -48,7 +48,13 @@ def select_camera(camera_choice: str) -> tuple[list[LaunchDescriptionEntity], Ca
             
             camera_nodes.append(
                 IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(realsense_launch_file)
+                    PythonLaunchDescriptionSource(realsense_launch_file),
+                    launch_arguments={
+                        "enable_sync":'true',
+                        "align_depth.enable":'true',
+                        "enable_color":'true',
+                        "enable_depth":'true',
+                    }.items()
                 )
             )
 
