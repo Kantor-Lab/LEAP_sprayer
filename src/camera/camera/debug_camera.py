@@ -66,6 +66,8 @@ class DebugCameraNode(Node):
         super().destroy_node()
 
 def main():
+    import sys
+    
     rclpy.init()
 
     node = DebugCameraNode()
@@ -75,7 +77,7 @@ def main():
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        print(f"Got error: {e}, shutting down debug camera node")
+        print(f"Got error: {e}, shutting down debug camera node", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():

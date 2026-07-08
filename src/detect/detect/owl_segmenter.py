@@ -120,7 +120,7 @@ def main():
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        print(f"Got error: {e}, shutting down debug camera node", file=sys.stderr)
+        print(f"Got error: {e}, shutting down OpenWeedLocator segmenter node", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():
