@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'owl_segmenter = detect.owl_segmenter:main'
+            'owl_segmenter = detect.owl_segmenter:main',
+            'debug_visualizer = detect.debug_visualizer:main'
         ],
     },
 )

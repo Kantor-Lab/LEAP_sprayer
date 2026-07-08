@@ -113,16 +113,23 @@ def generate_launch_description() -> LaunchDescription:
             name='rqt_image_view',
             condition=IfCondition(launch_rqt)
         ),
-        IncludeLaunchDescription(
-            XMLLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('foxglove_bridge'),
-                    'launch',
-                    'foxglove_bridge_launch.xml'
+        GroupAction(actions=[
+            IncludeLaunchDescription(
+                XMLLaunchDescriptionSource(
+                    os.path.join(
+                        get_package_share_directory('foxglove_bridge'),
+                        'launch',
+                        'foxglove_bridge_launch.xml'
+                    )
                 )
             ),
-            condition=IfCondition(launch_foxglove)
-        ),
+            Node(
+                package='detect',
+                executable='debug_visualizer',
+                name='debug_detection_visualizer'
+            ),
+        ],
+        condition=IfCondition(launch_foxglove)),
 
         OpaqueFunction(function=evaluate_args)
     ])
