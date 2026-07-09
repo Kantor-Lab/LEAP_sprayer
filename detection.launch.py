@@ -106,7 +106,7 @@ def select_projector(projector_choice: str) -> list[LaunchDescriptionEntity]:
         case 'basic':
             projector_nodes.append(
                 Node(
-                    package='project',
+                    package='projection',
                     executable='basic_projection',
                     name='basic_projection',
                     arguments=[],

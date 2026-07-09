@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'project'
+package_name = 'projection'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'basic_projection = project.basic_projection:main'
+            'basic_projection = projection.basic_projection:main'
         ],
     },
 )
