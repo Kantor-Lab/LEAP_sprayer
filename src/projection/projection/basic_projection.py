@@ -82,6 +82,10 @@ class BasicProjectionNode(Node):
 
             true_points = true_points_unit_dist[has_valid_depth] * relevant_depth_measurements[has_valid_depth].reshape((-1, 1))
 
+            # can't take min/max over empty true points
+            if (true_points.shape[0] == 0):
+                continue
+
             # gets min/max x,y,z values
             mins: np.ndarray[int, np.dtype[np.float32]] = np.min(true_points, axis=0)
             maxs: np.ndarray[int, np.dtype[np.float32]] = np.max(true_points, axis=0)
