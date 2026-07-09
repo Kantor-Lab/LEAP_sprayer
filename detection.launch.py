@@ -99,14 +99,34 @@ def select_detector(detector_choice: str) -> list[LaunchDescriptionEntity]:
     
     return detector_nodes
 
+def select_projector(projector_choice: str) -> list[LaunchDescriptionEntity]:
+    projector_nodes: list[LaunchDescriptionEntity] = []
+
+    match projector_choice:
+        case 'basic':
+            projector_nodes.append(
+                Node(
+                    package='project',
+                    executable='basic_projection',
+                    name='basic_projection',
+                    arguments=[],
+                )
+            )
+        case _:
+            raise ValueError(f'Invalid projector choice: {projector_choice}')
+    
+    return projector_nodes
+
 def evaluate_args(context: LaunchContext, *args, **kwargs) -> list[LaunchDescriptionEntity]:
     camera_choice = LaunchConfiguration('camera').perform(context)
     detector_choice = LaunchConfiguration('detector').perform(context)
+    projector_choice = LaunchConfiguration('projector').perform(context)
 
     camera_nodes = select_camera(camera_choice)
     detector_nodes = select_detector(detector_choice)
+    projector_nodes = select_projector(projector_choice)
     
-    return camera_nodes + detector_nodes
+    return camera_nodes + detector_nodes + projector_nodes
 
 def generate_launch_description() -> LaunchDescription:
     launch_rqt = LaunchConfiguration('image_viewer')
@@ -117,6 +137,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('foxglove', default_value='false'),
         DeclareLaunchArgument('camera', default_value='debug'),
         DeclareLaunchArgument('detector', default_value='owl'),
+        DeclareLaunchArgument('projector', default_value='basic'),
 
         Node(
             package='rqt_image_view',
