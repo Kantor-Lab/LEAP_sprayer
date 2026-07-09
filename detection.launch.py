@@ -21,72 +21,76 @@ class CameraOutputs:
         self.depth_image_topic = depth_image_topic
         self.info_topic = info_topic
 
-def select_camera(camera_choice: str) -> tuple[list[LaunchDescriptionEntity], CameraOutputs]:
+def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
 
     camera_nodes: list[LaunchDescriptionEntity] = []
-
-    camera_outputs: CameraOutputs | None = None
 
     match camera_choice:
         case 'debug':
             camera_nodes.append(
-                Node(
-                    package='camera',
-                    executable='debug_camera',
-                    name='debug_camera',
+                GroupAction(
+                    actions=[
+                        SetRemap(src="/image_raw", dst="/camera/color/image"),
+                        SetRemap(src="/depth_raw", dst="/camera/depth/image"),
+                        Node(
+                            package="camera",
+                            executable="debug_camera",
+                            name="debug_camera",
+                        ),
+                    ]
                 )
-            )
-            camera_outputs = CameraOutputs(
-                color_image_topic='/image_raw',
-                depth_image_topic='/depth_raw',
-                info_topic='/camera_info', # debug camera doesn't actually publish anything
             )
 
         case 'realsense':
             realsense_package_dir = get_package_share_directory('realsense2_camera')
             realsense_launch_file = os.path.join(realsense_package_dir, 'launch', 'rs_launch.py')
-            
-            camera_nodes.append(
-                IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(realsense_launch_file),
-                    launch_arguments={
-                        "enable_sync":'true',
-                        "align_depth.enable":'true',
-                        "enable_color":'true',
-                        "enable_depth":'true',
-                    }.items()
-                )
-            )
 
-            camera_outputs = CameraOutputs(
-                color_image_topic='/camera/camera/color/image_raw',
-                depth_image_topic='/camera/camera/aligned_depth_to_color/image_raw',
-                info_topic='/camera/camera/color/camera_info',
+            camera_nodes.append(
+                GroupAction(
+                    actions=[
+                        SetRemap(
+                            src="/camera/D435/color/image_raw",
+                            dst="/camera/color/image",
+                        ),
+                        SetRemap(
+                            src="/camera/D435/aligned_depth_to_color/image_raw",
+                            dst="/camera/depth/image",
+                        ),
+                        SetRemap(
+                            src="/camera/D435/aligned_depth_to_color/camera_info",
+                            dst="/camera/cam_info",
+                        ),
+                        IncludeLaunchDescription(
+                            PythonLaunchDescriptionSource(realsense_launch_file),
+                            launch_arguments={
+                                "enable_sync": "true",
+                                "align_depth.enable": "true",
+                                "enable_color": "true",
+                                "enable_depth": "true",
+                                "camera_namespace": "camera",
+                                "camera_name": "D435",
+                            }.items(),
+                        ),
+                    ]
+                )
             )
 
         case _:
             raise ValueError(f'Invalid camera choice: {camera_choice}')
 
-    # a good Python type checker will yell at you here if you forget to initialize camera_outputs on some paths
-    return camera_nodes, camera_outputs
+    return camera_nodes
 
-def select_detector(detector_choice: str, camera_outputs: CameraOutputs) -> list[LaunchDescriptionEntity]:
+def select_detector(detector_choice: str) -> list[LaunchDescriptionEntity]:
     detector_nodes: list[LaunchDescriptionEntity] = []
 
     match detector_choice:
         case 'openweedlocator' | 'owl':
             detector_nodes.append(
-                GroupAction(
-                    actions=[
-                        
-                SetRemap(src='/image', dst=camera_outputs.color_image_topic),
                 Node(
                     package='detect',
                     executable='owl_segmenter',
                     name='owl_segmenter',
                     arguments=[],
-                )
-                    ]
                 )
             )
         case _:
@@ -98,8 +102,8 @@ def evaluate_args(context: LaunchContext, *args, **kwargs) -> list[LaunchDescrip
     camera_choice = LaunchConfiguration('camera').perform(context)
     detector_choice = LaunchConfiguration('detector').perform(context)
 
-    camera_nodes, camera_outputs = select_camera(camera_choice)
-    detector_nodes = select_detector(detector_choice, camera_outputs)
+    camera_nodes = select_camera(camera_choice)
+    detector_nodes = select_detector(detector_choice)
     
     return camera_nodes + detector_nodes
 
