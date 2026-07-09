@@ -32,6 +32,7 @@ def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
                     actions=[
                         SetRemap(src="/image_raw", dst="/camera/color/image"),
                         SetRemap(src="/depth_raw", dst="/camera/depth/image"),
+                        SetRemap(src="/cam_info", dst="/camera/cam_info"),
                         Node(
                             package="camera",
                             executable="debug_camera",

@@ -5,7 +5,7 @@ from cv_bridge import CvBridge
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo, Image
 
 class DebugCameraNode(Node):
     def __init__(self):
@@ -15,6 +15,7 @@ class DebugCameraNode(Node):
 
         self.image_publisher_ = self.create_publisher(Image, '/image_raw', 10)
         self.depth_publisher_ = self.create_publisher(Image, '/depth_raw', 10)
+        self.cam_info_publisher_ = self.create_publisher(CameraInfo, '/cam_info', 10)
 
         cam_port = os.getenv('DEBUG_CAMERA_PORT')
         if cam_port:
@@ -59,6 +60,25 @@ class DebugCameraNode(Node):
             flat_depth_msg = self.bridge.cv2_to_imgmsg(flat_depth, encoding='mono16')
             flat_depth_msg.header.stamp = timestamp
             self.depth_publisher_.publish(flat_depth_msg)
+
+            identity_caminfo_msg = CameraInfo(
+                height=ros_image_msg.height,
+                width=ros_image_msg.width,
+                distortion_model='plumb_bob',
+                d=[0.0, 0.0, 0.0, 0.0, 0.0],
+                k=[1.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0,
+                   0.0, 0.0, 1.0],
+                r=[1.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0,
+                   0.0, 0.0, 1.0],
+                p=[1.0, 0.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0, 0.0,
+                   0.0, 0.0, 1.0, 0.0],
+            )
+            identity_caminfo_msg.header.stamp = timestamp
+            self.cam_info_publisher_.publish(identity_caminfo_msg)
+            
 
     def destroy_node(self):
         if self.cap is not None:
