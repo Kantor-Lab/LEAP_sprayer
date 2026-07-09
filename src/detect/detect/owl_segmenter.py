@@ -68,7 +68,7 @@ class OwlSegmenterNode(Node):
             depth=1,
         )
         self.image_sub_ = self.create_subscription(
-            Image, '/image', self.image_callback, qos_profile=image_qos)
+            Image, '/camera/color/image', self.image_callback, qos_profile=image_qos)
 
         self.detections2D_pub_ = self.create_publisher(Detection2DArray, '/detections2D', 10)
 
