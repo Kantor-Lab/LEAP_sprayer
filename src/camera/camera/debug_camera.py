@@ -57,7 +57,7 @@ class DebugCameraNode(Node):
             self.image_publisher_.publish(ros_image_msg)
 
             flat_depth = frame[:, :, 1].astype(np.uint16)
-            flat_depth_msg = self.bridge.cv2_to_imgmsg(flat_depth, encoding='mono16')
+            flat_depth_msg = self.bridge.cv2_to_imgmsg(flat_depth, encoding='16UC1')
             flat_depth_msg.header.stamp = timestamp
             self.depth_publisher_.publish(flat_depth_msg)
 
