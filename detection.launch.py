@@ -156,9 +156,9 @@ def generate_launch_description() -> LaunchDescription:
                 )
             ),
             Node(
-                package='detect',
-                executable='debug_visualizer',
-                name='debug_detection_visualizer'
+                package='foxglove_compat',
+                executable='detection2D_visualizer',
+                name='detection2D_visualizer'
             ),
         ],
         condition=IfCondition(launch_foxglove)),

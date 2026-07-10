@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'detect'
+package_name = 'foxglove_compat'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'owl_segmenter = detect.owl_segmenter:main',
+            'detection2D_visualizer = foxglove_compat.detection2D_visualizer:main'
         ],
     },
 )

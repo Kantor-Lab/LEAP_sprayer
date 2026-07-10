@@ -1,6 +1,6 @@
 """
 Debug visualizer for the /detections2D topic.
-Republishes the bounding box detections as ImageMarker messages.
+Republishes the bounding box detections as ImageMarker messages to /detections2D_vis.
 """
 
 from typing import cast
@@ -38,14 +38,14 @@ def bbox_to_corner_points(bbox: BoundingBox2D) -> list[Point]:
 
     return [Point(x=float(x), y=float(y)) for x, y in corners_rotated]
 
-class DebugDetectionVisualizerNode(Node):
+class Detection2DVisualizerNode(Node):
     def __init__(self):
-        super().__init__('debug_detection_visualizer')
+        super().__init__('detection2D_visualizer')
 
         self.detections2D_sub_ = self.create_subscription(
             Detection2DArray, '/detections2D', self.detections_callback, qos_profile=1)
 
-        self.markers_pub_ = self.create_publisher(ImageMarkerArray, '/detections2D_markers', 10)
+        self.markers_pub_ = self.create_publisher(ImageMarkerArray, '/detections2D_vis', 10)
 
         # make it an instance property to maintain consistency over frames
         self.id_lookup_: dict[str, int] = {}
@@ -81,7 +81,7 @@ def main():
     
     rclpy.init()
 
-    node = DebugDetectionVisualizerNode()
+    node = Detection2DVisualizerNode()
 
     try:
         rclpy.spin(node)
