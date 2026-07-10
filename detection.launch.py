@@ -160,6 +160,16 @@ def generate_launch_description() -> LaunchDescription:
                 executable='detections2D_visualizer',
                 name='detections2D_visualizer'
             ),
+            # raw detections visualizer
+            Node(
+                package='foxglove_compat',
+                executable='detections3D_visualizer',
+                name='detections3D_raw_visualizer',
+                remappings={
+                    '/detections3D' : '/detections3D_raw',
+                    '/detections3D_vis' : '/detections3D_raw_vis'
+                }.items()
+            ),
         ],
         condition=IfCondition(launch_foxglove)),
 

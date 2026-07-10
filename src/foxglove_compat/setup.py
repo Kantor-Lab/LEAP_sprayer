@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'detections2D_visualizer = foxglove_compat.detections2D_visualizer:main',
+            'detections3D_visualizer = foxglove_compat.detections3D_visualizer:main'
         ],
     },
 )
