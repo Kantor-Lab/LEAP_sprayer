@@ -4,9 +4,9 @@ enable_color: true
 enable_depth: true
 
 rgb_camera:
-  enable_auto_exposure: false
-  exposure: 7
+# enable_auto_exposure: false
+# exposure: 7
   enable_auto_white_balance: false
-  white_balance: 5000.0
+  white_balance: 3500.0 # accepts 2800 to 6500
 
 # do not set camera_namepsace/camera_name here, those are in launch file
