@@ -63,6 +63,14 @@ DEBUG_CAMERA_PORT=1 pixi run launch
 ```
 should do the trick.
 
+If you need to do additional work in the shell, run
+```bash
+pixi shell
+```
+This gives you access to everything, but does not source `install/setup.sh`.
+If you need a sourced shell (this will work regardless of what shell you use),
+pass the `-e sourced` flag.
+
 ## Supported platforms
 
 This project currently tries to support the following platforms,
