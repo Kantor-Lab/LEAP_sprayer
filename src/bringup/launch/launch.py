@@ -46,6 +46,11 @@ def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
             realsense_package_dir = get_package_share_directory('realsense2_camera')
             realsense_launch_file = os.path.join(realsense_package_dir, 'launch', 'rs_launch.py')
 
+            config_file = os.path.join(
+                get_package_share_directory('bringup'),
+                'config', 'realsense_config.yaml'
+            )
+
             camera_nodes.append(
                 GroupAction(
                     actions=[
@@ -64,12 +69,9 @@ def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
                         IncludeLaunchDescription(
                             PythonLaunchDescriptionSource(realsense_launch_file),
                             launch_arguments={
-                                "enable_sync": "true",
-                                "align_depth.enable": "true",
-                                "enable_color": "true",
-                                "enable_depth": "true",
                                 "camera_namespace": "camera",
                                 "camera_name": "D435",
+                                "config_file": config_file
                             }.items(),
                         ),
                     ]

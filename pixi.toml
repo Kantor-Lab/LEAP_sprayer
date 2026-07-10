@@ -19,7 +19,7 @@ cmd = """
 {% if not pixi.is_linux %}\
 echo \"WARNING: not all features work on non-Linux platforms\" && \
 {% endif %}\
-ros2 launch detection.launch.py
+ros2 launch bringup launch.py
 """
 depends-on = [{task = "build"}]
 

@@ -1,0 +1,12 @@
+enable_sync: true
+align_depth.enable: true
+enable_color: true
+enable_depth: true
+
+rgb_camera:
+  enable_auto_exposure: false
+  exposure: 7
+  enable_auto_white_balance: false
+  white_balance: 5000
+
+# do not set camera_namepsace/camera_name here, those are in launch file

@@ -43,7 +43,7 @@ To launch the system, run
 pixi run launch
 ```
 
-You can optionally pass arguments to the underlying [`detection.launch.py`](./detection.launch.py) to startup different things.
+You can optionally pass arguments to the underlying [`launch.py`](./src/bringup/launch/launch.py) to startup different things.
 For example, to use the Realsense camera instead of the debug camera, run
 ```bash
 pixi run launch camera:=realsense
