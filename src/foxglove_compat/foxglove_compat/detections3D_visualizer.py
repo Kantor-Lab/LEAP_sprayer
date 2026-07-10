@@ -65,7 +65,7 @@ def bbox_to_line(bbox: BoundingBox3D) -> LinePrimitive:
     line = LinePrimitive(
         type=LinePrimitive.LINE_LIST,
         pose=bbox.center,
-        thickness=0.05,
+        thickness=0.01,
         scale_invariant=False,
         points=corners,
         color=Color(r=0.0, g=1.0, b=0.0, a=1.0),
