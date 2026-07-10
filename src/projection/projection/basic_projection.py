@@ -77,7 +77,7 @@ class BasicProjectionNode(Node):
 
             # extract the depth measurements we care about and convert them to meters
             # points_to_analyze is (x, y), so we need to reverse the accesses
-            relevant_depth_measurements = depth_mm[points_to_analyze[:, 1], points_to_analyze[:, 0]].astype(np.float32) * 100.0
+            relevant_depth_measurements = depth_mm[points_to_analyze[:, 1], points_to_analyze[:, 0]].astype(np.float32) / 1000.0
             has_valid_depth = relevant_depth_measurements != 0.0
 
             true_points = true_points_unit_dist[has_valid_depth] * relevant_depth_measurements[has_valid_depth].reshape((-1, 1))
