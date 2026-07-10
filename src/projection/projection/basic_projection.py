@@ -41,7 +41,7 @@ class BasicProjectionNode(Node):
 
         self.time_synced.registerCallback(self.data_callback)
 
-        self.boxes_pub_ = self.create_publisher(Detection3DArray, '/detection3D_raw', 10)
+        self.boxes_pub_ = self.create_publisher(Detection3DArray, '/detections3D_raw', 10)
 
         self.cv_bridge = cv_bridge.CvBridge()
 

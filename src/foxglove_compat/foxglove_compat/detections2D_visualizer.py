@@ -40,7 +40,7 @@ def bbox_to_corner_points(bbox: BoundingBox2D) -> list[Point]:
 
 class Detection2DVisualizerNode(Node):
     def __init__(self):
-        super().__init__('detection2D_visualizer')
+        super().__init__('detections2D_visualizer')
 
         self.detections2D_sub_ = self.create_subscription(
             Detection2DArray, '/detections2D', self.detections_callback, qos_profile=1)

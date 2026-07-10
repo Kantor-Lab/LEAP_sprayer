@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'detection2D_visualizer = foxglove_compat.detection2D_visualizer:main'
+            'detections2D_visualizer = foxglove_compat.detections2D_visualizer:main',
         ],
     },
 )
