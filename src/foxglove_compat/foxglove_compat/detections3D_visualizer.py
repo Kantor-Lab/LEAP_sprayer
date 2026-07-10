@@ -85,6 +85,7 @@ class Detection3DVisualizerNode(Node):
 
     def detections_callback(self, msg: Detection3DArray) -> None:
         timestamp = msg.header.stamp
+        frame_id = msg.header.frame_id
         
         scene_update_msg = SceneUpdate()
 
@@ -103,6 +104,7 @@ class Detection3DVisualizerNode(Node):
             entity = SceneEntity()
 
             entity.timestamp = timestamp
+            entity.frame_id = frame_id
             entity.lines = [bbox_to_line(detection.bbox)]
 
             entities.append(entity)
