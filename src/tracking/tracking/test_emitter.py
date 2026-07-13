@@ -17,7 +17,7 @@ class BoxPublisher(Node):
     
     def __init__(self):
         super().__init__('box_publisher')
-        self.box_pub = self.create_publisher(Detection3DArray, 'box', 10)
+        self.box_pub = self.create_publisher(Detection3DArray, 'detections3D', 10)
         self.marker_pub = self.create_publisher(MarkerArray, 'nozzle_markers', 10)
         self.timer = self.create_timer(0.1, self.timer_callback)
 
