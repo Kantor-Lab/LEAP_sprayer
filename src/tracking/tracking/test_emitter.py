@@ -21,30 +21,52 @@ class BoxPublisher(Node):
         self.marker_pub = self.create_publisher(MarkerArray, 'nozzle_markers', 10)
         self.timer = self.create_timer(0.1, self.timer_callback)
 
-        self.sim_time = 0.0
         self.nozzle_spacing = NOZZLESPACING
         self.spray_footprint = SPRAYFOOTPRINT
         self.buffer = BUFFER
 
+        self.current_box_idx = 0
+        self.y_current = 0.5
+        self.speed = 0.1
+
+        # x_center, width, height
+        self.scenarios = [
+                (0.00, 0.06, 0.06), # box perfectly fits in nozzle 0 solo zone
+                (0.1905, 0.06, 0.06), # box perfectly fits in nozzle 1 solo zone
+                (0.381, 0.06, 0.06), # box perfectly fits in nozzle 2 solo zone
+                (0.5715, 0.06, 0.06), # box perfectly fits in nozzle 3 solo zone
+                (0.1905, 0.220, 0.09), # box extends into overlap region, but can be covered by noz 0
+                (0.05, 0.25, 0.10), # box needs two noz 0, 1
+                (0.1905, 0.57, 0.08), # box needs three noz 0, 1, 2
+                (0.286, 0.762, 0.10), # box needs all four noz
+                (0.095, 0.03, 0.08), # box sits in overlap b/n two noz 0, 1
+        ]
+
+
     def timer_callback(self):
         now = self.get_clock().now().to_msg()
-        
-        # weed box 1
+
+        x_c, w, h  = self.scenarios[self.current_box_idx]
+
+        self.y_current -= self.speed * 0.1
+        if self.y_current + h/2 < -self.buffer * 2:
+            self.y_current = 0.5
+            self.current_box_idx = (self.current_box_idx + 1) % len(self.scenarios)
+            return
+
         detection_array = Detection3DArray()
         detection_array.header.frame_id = 'map'
         detection_array.header.stamp = now
 
-        y_pos = 0.4 - (self.sim_time % 8) * 0.075
-        
         detection =  Detection3D()
         detection.header = detection_array.header
 
-        detection.bbox.center.position.x = 0.20
-        detection.bbox.center.position.y = y_pos
+        detection.bbox.center.position.x = x_c
+        detection.bbox.center.position.y = self.y_current
         detection.bbox.center.position.z = 0.0
 
-        detection.bbox.size.x = 0.10
-        detection.bbox.size.y = 0.08
+        detection.bbox.size.x = w
+        detection.bbox.size.y = h
         detection.bbox.size.z = 0.05
 
         hypothesis = ObjectHypothesisWithPose()
@@ -122,7 +144,6 @@ class BoxPublisher(Node):
             marker_array.markers.append(pt)
 
         self.marker_pub.publish(marker_array)
-        self.sim_time += 0.1
 
         
 def main(args=None):
