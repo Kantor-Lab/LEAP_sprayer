@@ -128,9 +128,13 @@ class BoxPublisher(Node):
 def main(args=None):
     rclpy.init()
     box_publisher = BoxPublisher()
-    rclpy.spin(box_publisher)
-    box_publisher.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(box_publisher)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        box_publisher.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
