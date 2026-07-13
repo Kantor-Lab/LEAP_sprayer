@@ -119,16 +119,36 @@ def select_projector(projector_choice: str) -> list[LaunchDescriptionEntity]:
     
     return projector_nodes
 
+def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
+    tracker_nodes: list[LaunchDescriptionEntity] = []
+
+    match tracker_choice:
+        case 'debug' | 'test':
+            tracker_nodes.append(
+                Node(
+                    package='tracking',
+                    executable='test_emitter',
+                    name='test_tracker',
+                    arguments=[],
+                )
+            )
+        case _:
+            raise ValueError(f'Invalid tracker choice: {tracker_choice}')
+    
+    return tracker_nodes
+
 def evaluate_args(context: LaunchContext, *args, **kwargs) -> list[LaunchDescriptionEntity]:
     camera_choice = LaunchConfiguration('camera').perform(context)
     detector_choice = LaunchConfiguration('detector').perform(context)
     projector_choice = LaunchConfiguration('projector').perform(context)
+    tracker_choice = LaunchConfiguration('tracker').perform(context)
 
     camera_nodes = select_camera(camera_choice)
     detector_nodes = select_detector(detector_choice)
     projector_nodes = select_projector(projector_choice)
-    
-    return camera_nodes + detector_nodes + projector_nodes
+    tracker_nodes = select_tracker(tracker_choice)
+
+    return camera_nodes + detector_nodes + projector_nodes + tracker_nodes
 
 def generate_launch_description() -> LaunchDescription:
     launch_rqt = LaunchConfiguration('image_viewer')
@@ -140,6 +160,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('camera', default_value='debug'),
         DeclareLaunchArgument('detector', default_value='owl'),
         DeclareLaunchArgument('projector', default_value='basic'),
+        DeclareLaunchArgument('tracker', default_value='debug'),        
 
         Node(
             package='rqt_image_view',
