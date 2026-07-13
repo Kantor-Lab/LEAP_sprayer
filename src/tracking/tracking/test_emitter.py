@@ -1,10 +1,10 @@
 import rclpy
 from rclpy.node import Node
 
+from geometry_msgs.msg import Point
+from std_msgs.msg import ColorRGBA
 from vision_msgs.msg import Detection3DArray, Detection3D, ObjectHypothesisWithPose
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import Point
-import math
 
 # Constants (measurements in meters)
 NUMNOZZLES = 4
@@ -48,9 +48,9 @@ class BoxPublisher(Node):
         detection.bbox.size.z = 0.05
 
         hypothesis = ObjectHypothesisWithPose()
-        detection.results.append(hypothesis)
+        detection.results = [hypothesis]
 
-        detection_array.detections.append(detection)
+        detection_array.detections = [detection]
         self.box_pub.publish(detection_array)
 
         # stationary
@@ -58,6 +58,8 @@ class BoxPublisher(Node):
 
         line_start_x = -0.3
         line_end_x = 3 * NOZZLESPACING + 0.3
+
+        markers: list[Marker] = []
         
         # turn on zone -- lines
         upper_line = Marker()
@@ -67,9 +69,9 @@ class BoxPublisher(Node):
         upper_line.type = Marker.LINE_STRIP
         upper_line.action = Marker.ADD
         upper_line.scale.x = 0.01
-        upper_line.color.r = 1.0; upper_line.color.g = 1.0; upper_line.color.b = 0.0; upper_line.color.a = 0.8
+        upper_line.color = ColorRGBA(r=1.0, g=1.0, b=0.0, a=0.8)
         upper_line.points = [Point(x=line_start_x, y=self.buffer, z=0.0), Point(x=line_end_x, y=self.buffer, z=0.0)]
-        marker_array.markers.append(upper_line)
+        markers.append(upper_line)
 
         lower_line = Marker()
         lower_line.header.frame_id = 'map'
@@ -78,9 +80,9 @@ class BoxPublisher(Node):
         lower_line.type = Marker.LINE_STRIP
         lower_line.action = Marker.ADD
         lower_line.scale.x = 0.01
-        lower_line.color.r = 1.0; lower_line.color.g = 1.0; lower_line.color.b = 0.0; lower_line.color.a = 0.8
+        lower_line.color = ColorRGBA(r=1.0, g=1.0, b=0.0, a=0.8)
         lower_line.points = [Point(x=line_start_x, y=-self.buffer, z=0.0), Point(x=line_end_x, y=-self.buffer, z=0.0)]
-        marker_array.markers.append(lower_line)
+        markers.append(lower_line)
         
         for i in range(4):
             noz_center_x = i * self.nozzle_spacing
@@ -102,8 +104,8 @@ class BoxPublisher(Node):
             footprint.scale.x = self.spray_footprint
             footprint.scale.y = 0.06
             footprint.scale.z = 0.005
-            footprint.color.r = r; footprint.color.g = g; footprint.color.b = b; footprint.color.a = 0.5
-            marker_array.markers.append(footprint)
+            footprint.color = ColorRGBA(r=r, g=g, b=b, a=0.5)
+            markers.append(footprint)
             
             # nozzle centers
             pt = Marker()
@@ -118,8 +120,10 @@ class BoxPublisher(Node):
             pt.scale.x = 0.025
             pt.scale.y = 0.025
             pt.scale.z = 0.025
-            pt.color.r = 1.0; pt.color.g = 0.0; pt.color.b = 0.0; pt.color.a = 1.0
-            marker_array.markers.append(pt)
+            pt.color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
+            markers.append(pt)
+
+        marker_array.markers = markers
 
         self.marker_pub.publish(marker_array)
         self.sim_time += 0.1

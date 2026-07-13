@@ -1,3 +1,5 @@
+from typing import cast
+
 import rclpy
 from rclpy.node import Node
 from vision_msgs.msg import Detection3DArray, Detection3D
@@ -60,16 +62,15 @@ class SerialCtrlSubscriber(Node):
                 'detections3D', 
                 self.listener_callback,
                 10)
-        self.subscription
 
-    def listener_callback(self, msg):
-        frame = msg.header.frame_id
+    def listener_callback(self, msg: Detection3DArray):
         fboom_new = [0] * NUMNOZZLES
         if not msg.detections:
             send_serialcmd("all", 0) # turn everything off
             self.get_logger().info("No bounding boxes received")
             return
         for detection in msg.detections: # grab all boxes
+            detection = cast(Detection3D, detection)
             x = detection.bbox.center.position.x
             y = detection.bbox.center.position.y
             w = detection.bbox.size.x
