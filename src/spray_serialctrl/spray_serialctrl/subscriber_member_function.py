@@ -57,7 +57,7 @@ class SerialCtrlSubscriber(Node):
         self.fboom_current = [0] * NUMNOZZLES
         self.subscription = self.create_subscription(
                 Detection3DArray, 
-                'box', 
+                'detections3D', 
                 self.listener_callback,
                 10)
         self.subscription
