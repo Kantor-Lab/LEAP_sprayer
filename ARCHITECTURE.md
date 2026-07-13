@@ -17,7 +17,7 @@ graph TB
   cam(Camera) --> cam_node
 
   cam_node[camera_node]
-  cam_node -->|sensor_msgs/msg/Image(encoding=16UC1)| depth[//camera/depth/image/]
+  cam_node -->|"sensor_msgs/msg/Image(encoding=16UC1)"| depth[//camera/depth/image/]
   cam_node -->|sensor_msgs/msg/Image| color[//camera/color/image/]
   cam_node -->|sensor_msgs/msg/CameraInfo| info[//camera/cam_info/]
 
