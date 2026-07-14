@@ -28,6 +28,18 @@ sudo curl "https://raw.githubusercontent.com/realsenseai/librealsense/refs/heads
         -o /etc/udev/rules.d/99-realsense-libusb.rules
 ```
 
+In addition, for Linux users planning to flash the firmware of an Arduino,
+you'll need to follow [these](https://docs.platformio.org/en/latest/core/installation/udev-rules.html#platformio-udev-rules)
+instructions to let PlatformIO install for you.
+That boils down to
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/system/99-platformio-udev.rules | sudo tee /etc/udev/rules.d/99-platformio-udev.rules
+```
+
+Potentially, after doing either of these, you may need to run `sudo service udev restart` to see the changes,
+and maybe unplug and replug connected devices a few times.
+
 To build all the nodes, run
 ```bash
 pixi run build

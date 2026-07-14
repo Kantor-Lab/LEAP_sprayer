@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 char buffer[32];
 
 void poweroff_seq() {
