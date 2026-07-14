@@ -11,8 +11,14 @@ version = "0.1.0"
 [feature.source_ros2]
 activation = { scripts = ["install/setup.sh"] }
 
+# used for arduino development and deployment
+[feature.firmware.dependencies]
+platformio = "~=6.1.19"
+
 [environments]
 sourced = ["source_ros2"]
+# disable default imports (we don't need ros2 in this)
+firmware = { features = ["firmware"], no-default-feature = true }
 
 [tasks.build]
 cmd = "colcon build --symlink-install"
