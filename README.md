@@ -10,6 +10,8 @@ with herbicide in and around pot-in-pot tree nurseries and other spaces.
 
 ## Usage
 
+### Setup
+
 This project uses [Pixi](https://pixi.sh) to manage dependencies for the project.
 After ensuring Pixi is installed on your system, run the following to download and install dependencies for the project:
 
@@ -39,6 +41,8 @@ curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core/develop/
 
 Potentially, after doing either of these, you may need to run `sudo service udev restart` to see the changes,
 and maybe unplug and replug connected devices a few times.
+
+### ROS
 
 To build all the nodes, run
 ```bash
@@ -82,6 +86,24 @@ pixi shell
 This gives you access to everything, but does not source `install/setup.sh`.
 If you need a sourced shell (this will work regardless of what shell you use),
 pass the `-e sourced` flag.
+
+### Embedded
+
+We use [PlatformIO](https://platformio.org) for building and deploying code
+onto the Arduino UNO that powers our solenoids.
+This is automatically managed through pixi, so `pixi shell -e firmware`
+will give you full access to the tool in your shell.
+
+To build firmware without going through this, run
+```bash
+pixi run build-firmware [controller] [upload|no_upload]
+```
+
+There are currently two controllers implemented
+(corresponding to what is stored in [`firmware`](./firmware))
+* `live`: actually communicates with the real solenoid drivers
+* `test_led`: triggers leds from PWMs 2–4 for testing purposes
+<!--TODO: include more info on what specifically each does-->
 
 ## Supported platforms
 
