@@ -98,7 +98,7 @@ class Detection3DVisualizerNode(Node):
         
         entities: list[SceneEntity] = []
         
-        for detection in msg.detections:
+        for i, detection in enumerate(msg.detections):
             detection = cast(Detection3D, detection)
             
             entity = SceneEntity()
@@ -106,6 +106,7 @@ class Detection3DVisualizerNode(Node):
             entity.timestamp = timestamp
             entity.frame_id = frame_id
             entity.lines = [bbox_to_line(detection.bbox)]
+            entity.id = f"detection3D_{i}"
 
             entities.append(entity)
 
