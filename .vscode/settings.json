@@ -1,0 +1,27 @@
+{
+  // Python interpreter from the Pixi/RoboStack env
+  "python.defaultInterpreterPath": "${workspaceFolder}/.pixi/envs/default/bin/python",
+  "python.terminal.activateEnvironment": false,
+
+  // IntelliSense import resolution for ROS2 + local packages
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/.pixi/envs/default/lib/python3.11/site-packages"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/.pixi/envs/default/lib/python3.11/site-packages",
+    // if packages ever start depending on one another,
+    // colcon build --merge-install and this may be useful to detect those.
+    // for now, though, install/lib doesn't exist, only install/<pkg>/lib
+    // "${workspaceFolder}/install/lib/python3.11/site-packages"
+  ],
+  "python.analysis.typeCheckingMode": "basic",
+
+  // Keep the huge .pixi env out of file watching / search
+  "files.watcherExclude": { "**/.pixi/**": true },
+  "search.exclude": { "**/.pixi/**": true },
+
+  // PlatformIO: only activate when a platformio.ini is present
+  "platformio-ide.activateOnlyOnPlatformIOProject": true
+  // Don't configure platformio to try to use the pixi-installed version
+  // because it frequently has problems and requires devs to do env stuff
+}
