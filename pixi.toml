@@ -66,6 +66,6 @@ args = [
     { arg = "do_upload", "default" = "no_upload", "choices" = ["no_upload", "upload"] }
 ]
 cmd = """
-    cd firmware/solenoid_controller_{{ controller }}/ && \
-    platformio run -e uno {% if do_upload == 'upload' %}--target upload{% endif %}
+    cd firmware/solenoid_controller/ && \
+    platformio run -e {{ controller }} {% if do_upload == 'upload' %}--target upload{% endif %}
     """

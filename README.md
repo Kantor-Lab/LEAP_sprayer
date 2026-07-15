@@ -100,7 +100,7 @@ pixi run build-firmware [controller] [upload|no_upload]
 ```
 
 There are currently two controllers implemented
-(corresponding to what is stored in [`firmware`](./firmware))
+(corresponding to PlatformIO environments in [`firmware/solenoid_controller/platformio.ini`](./firmware/solenoid_controller/platformio.ini))
 * `live`: actually communicates with the real solenoid drivers
 * `test_led`: triggers leds from PWMs 2–4 for testing purposes
 <!--TODO: include more info on what specifically each does-->
