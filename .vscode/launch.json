@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ROS: Build",
+      "type": "shell",
+      "command": "pixi run build",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "ROS: Launch (debug camera)",
+      "type": "shell",
+      "command": "pixi run launch camera:=debug",
+      "group": "test",
+      "problemMatcher": [],
+      "dependsOn": "ROS: Build"
+    },
+    {
+      "label": "ROS: Launch (Realsense camera)",
+      "type": "shell",
+      "command": "pixi run launch camera:=realsense",
+      "group": "test",
+      "problemMatcher": [],
+      "dependsOn": "ROS: Build"
+    }
+  ]
+}

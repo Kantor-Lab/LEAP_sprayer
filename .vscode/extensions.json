@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "platformio.platformio-ide",
+    "ms-vscode.cpptools", // may conflict with clangd support if ever adding C++ ROS nodes,
+                          // somewhat relied on by platformio
+    // "ms-iot.vscode-ros" // doesn't support Pixi
+  ]
+}

@@ -12,5 +12,10 @@ __pycache__/
 
 # editor files
 .idea/
-.vscode/
+.vscode/*
 .zed/
+
+# vscode config
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json

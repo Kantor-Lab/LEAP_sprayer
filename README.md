@@ -161,3 +161,10 @@ It should now be available whenever you run commands via `pixi run` or in the `p
 pixi run pkg-create my_package my_node
 ```
 This will create a new node named `my_node` in the `my_package` package.
+
+### VSCode support
+
+The [`.vscode/`](./.vscode) folder includes a few things to help you get started quickly developing the project.
+Try going to the extension marketplace and searching for `@recommended` for a list of extensions we try
+to preconfigure to work well. Most useful is probably the PlatformIO extension if developing firmware,
+although the command line tools as described above will still work fine.
