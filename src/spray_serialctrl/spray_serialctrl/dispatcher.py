@@ -1,14 +1,13 @@
+"""
+Ingests bounding boxes and determines which nozzles to fire to target those
+"""
+
 from typing import cast
 
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import String
 from vision_msgs.msg import Detection3DArray, Detection3D
-import serial
-import time
-
-ser = serial.Serial('/dev/ttyUSB0', 115200)
-time.sleep(2)
-print("Arduino connected.")
 
 # Constants (measurements in meters)
 NUMNOZZLES = 4
@@ -39,34 +38,27 @@ def nozzlestate(x, w):
     return c
 
 
-def send_serialcmd(nozzlenum, state):
-    if nozzlenum == "all":
-        ser.write(b'NX')
-        return
-    command = f"NSC{nozzlenum}{state}"
-    ser.write(command.encode('utf-8'))
-    serial_response = ser.readline().decode('utf-8').strip()
-    if serial_response:
-        print(f"Arduino message -- {serial_response}")
-    else:
-        print("Arduino message -- No ACK received. Timed out.")
-    
-
-class SerialCtrlSubscriber(Node):
+class NozzleCommandDispatcher(Node):
 
     def __init__(self):
-        super().__init__('serialctrl_subscriber')
+        super().__init__('nozzle_command_dispatcher')
         self.fboom_current = [0] * NUMNOZZLES
         self.subscription = self.create_subscription(
                 Detection3DArray, 
                 'detections3D', 
                 self.listener_callback,
                 10)
+        self.command_publisher = self.create_publisher(
+            String,
+            'spraycommand',
+            10
+        )
 
     def listener_callback(self, msg: Detection3DArray):
         fboom_new = [0] * NUMNOZZLES
+
         if not msg.detections:
-            send_serialcmd("all", 0) # turn everything off
+            self.command_publisher.publish(String(data="NX"))
             self.get_logger().info("No bounding boxes received")
             return
         for detection in msg.detections: # grab all boxes
@@ -80,26 +72,27 @@ class SerialCtrlSubscriber(Node):
                 for n in range(0, len(nozzle_on)):
                     if nozzle_on[n] == 1:
                         fboom_new[n] = 1
+
         for n in range(0, len(fboom_new)):
             if fboom_new[n] != self.fboom_current[n]:
-                send_serialcmd(n, fboom_new[n]) # nozzle number, new nozzle state
+                self.command_publisher.publish(
+                    String(data=f"NSC{n}{fboom_new[n]}")
+                )
         self.fboom_current = fboom_new
 
 
 def main():
     rclpy.init(args=None)
-    serialctrl_subscriber = SerialCtrlSubscriber()
+    node = NozzleCommandDispatcher()
     try:
-        rclpy.spin(serialctrl_subscriber)
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        import sys
+
+        print(f"Got error: {e}, shutting down nozzle command dispatcher", file=sys.stderr)
     finally:
-        ser.write(b'NX')
-        serialctrl_subscriber.get_logger().info("Reset all nozzles")
-        ser.close()
-        serialctrl_subscriber.get_logger().info("Serial port closed")
-        rclpy.shutdown()
-
-
-if __name__ == '__main__':
-    main()
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
