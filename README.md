@@ -28,6 +28,21 @@ sudo curl "https://raw.githubusercontent.com/realsenseai/librealsense/refs/heads
         -o /etc/udev/rules.d/99-realsense-libusb.rules
 ```
 
+and for communicating with the Arduino
+(at least for us because we were using a knockoff brand)
+you'll need to uninstall or kill the Braille screen reader support
+so Linux doesn't recognize it as a screen reader and try to take it over
+
+To uninstall completely
+```bash
+sudo apt remove --purge brltty
+```
+or to just disable it and set it to not startup again
+```bash
+sudo systemctl stop brltty.service brltty-udev.service
+sudo systemctl mask brltty.service brltty-udev.service
+```
+
 To build all the nodes, run
 ```bash
 pixi run build
