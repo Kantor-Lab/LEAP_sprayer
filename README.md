@@ -10,6 +10,8 @@ with herbicide in and around pot-in-pot tree nurseries and other spaces.
 
 ## Usage
 
+### Setup
+
 This project uses [Pixi](https://pixi.sh) to manage dependencies for the project.
 After ensuring Pixi is installed on your system, run the following to download and install dependencies for the project:
 
@@ -27,6 +29,20 @@ That basically boils down to running
 sudo curl "https://raw.githubusercontent.com/realsenseai/librealsense/refs/heads/master/config/99-realsense-libusb.rules" \
         -o /etc/udev/rules.d/99-realsense-libusb.rules
 ```
+
+In addition, for Linux users planning to flash the firmware of an Arduino,
+you'll need to follow [these](https://docs.platformio.org/en/latest/core/installation/udev-rules.html#platformio-udev-rules)
+instructions to let PlatformIO install for you.
+That boils down to
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/system/99-platformio-udev.rules | sudo tee /etc/udev/rules.d/99-platformio-udev.rules
+```
+
+Potentially, after doing either of these, you may need to run `sudo service udev restart` to see the changes,
+and maybe unplug and replug connected devices a few times.
+
+### ROS
 
 To build all the nodes, run
 ```bash
@@ -70,6 +86,24 @@ pixi shell
 This gives you access to everything, but does not source `install/setup.sh`.
 If you need a sourced shell (this will work regardless of what shell you use),
 pass the `-e sourced` flag.
+
+### Embedded
+
+We use [PlatformIO](https://platformio.org) for building and deploying code
+onto the Arduino UNO that powers our solenoids.
+This is automatically managed through pixi, so `pixi shell -e firmware`
+will give you full access to the tool in your shell.
+
+To build firmware without going through this, run
+```bash
+pixi run build-firmware [controller] [upload|no_upload]
+```
+
+There are currently two controllers implemented
+(corresponding to PlatformIO environments in [`firmware/solenoid_controller/platformio.ini`](./firmware/solenoid_controller/platformio.ini))
+* `live`: actually communicates with the real solenoid drivers
+* `test_led`: triggers leds from PWMs 2–4 for testing purposes
+<!--TODO: include more info on what specifically each does-->
 
 ## Supported platforms
 
