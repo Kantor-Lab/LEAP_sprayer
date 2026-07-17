@@ -15,7 +15,22 @@ activation = { scripts = ["install/setup.sh"] }
 sourced = ["source_ros2"]
 
 [tasks.build]
-cmd = "colcon build --symlink-install"
+# these args could be in a colcon.meta file,
+# but let's not just so the project probably should build without pixi
+# e.g. {"names": {"*": {"cmake-args": ["-DPython_ROOT_DIR=$CONDA_PREFIX","-DPython_FIND_STRATEGY=LOCATION"]}}}
+# the RPATH flag cleans up some annoying errors on macOS
+# -Wno-dev suppresses warnings that come up out of outdated ROS2 cmake stuff we can't fix
+# --no-warn-unused-cli suppresses "manually specified variables not used" warning
+# that comes out of ros
+cmd = """
+    colcon build --symlink-install \
+    --cmake-args \
+      -DPython_ROOT_DIR="$CONDA_PREFIX" \
+      -DPython_FIND_STRATEGY=LOCATION \
+      -DCMAKE_BUILD_WITH_INSTALL_RPATH=TRUE \
+      -Wno-dev \
+      --no-warn-unused-cli
+"""
 inputs = ["src"]
 outputs = ["build", "install"]
 
