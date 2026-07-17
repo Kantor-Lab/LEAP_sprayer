@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="sprayerAssy2">
+  <link
+    name="sprayer_base">
+    <inertial>
+      <origin
+        xyz="-0.00543459228110459 0.0295146217790944 0.145329399405949"
+        rpy="0 0 0" />
+      <mass
+        value="1.00183336026012" />
+      <inertia
+        ixx="0.0107424079393146"
+        ixy="4.43641882561302E-07"
+        ixz="-2.32919863812985E-06"
+        iyy="0.0102838253004169"
+        iyz="5.93556735885501E-06"
+        izz="0.000721880366957507" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file://$(find sprayer_description)/meshes/broadcast_boom.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+  </link>
+  <link
+    name="spot_boom">
+    <inertial>
+      <origin
+        xyz="-0.0357713299220376 -0.00329483472336278 0.00236380320933293"
+        rpy="0 0 0" />
+      <mass
+        value="1.37363149016806" />
+      <inertia
+        ixx="0.0300996655430217"
+        ixy="1.10909218460321E-05"
+        ixz="-3.3710190027557E-06"
+        iyy="0.0299986656322456"
+        iyz="2.37631931401429E-05"
+        izz="0.000451157819242657" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file://$(find sprayer_description)/meshes/spot_boom.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+  </link>
+  <joint
+    name="spot_boom_j"
+    type="fixed">
+    <origin
+      xyz="0.0886460000000002 0.060325 0.06985"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="sprayer_base" />
+    <child
+      link="spot_boom" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+
+  <link
+    name="spot_nozzle1">
+  </link>
+
+  <joint
+    name="spot_nozzle1_j"
+    type="fixed">
+    <origin
+      xyz="0 -0.0665988000000001 -0.28575"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="spot_boom" />
+    <child
+      link="spot_nozzle1" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+
+  <link
+    name="spot_nozzle2">
+  </link>
+
+  <joint
+    name="spot_nozzle2_j"
+    type="fixed">
+    <origin
+      xyz="0 -0.0665988000000001 -0.09525"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="spot_boom" />
+    <child
+      link="spot_nozzle2" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+
+  <link
+    name="spot_nozzle3">
+  </link>
+
+  <joint
+    name="spot_nozzle3_j"
+    type="fixed">
+    <origin
+      xyz="0 -0.0665988000000001 0.09525"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="spot_boom" />
+    <child
+      link="spot_nozzle3" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+
+  <link
+    name="spot_nozzle4">
+  </link>
+
+  <joint
+    name="spot_nozzle4_j"
+    type="fixed">
+    <origin
+      xyz="0 -0.0665988000000001 0.28575"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="spot_boom" />
+    <child
+      link="spot_nozzle4" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+
+  <link
+    name="broadcast_nozzle1">
+  </link>
+
+  <joint
+    name="broadcast_nozzle1_j"
+    type="fixed">
+    <origin
+      xyz="-0.050546 0.0484886 -0.0538988"
+      rpy="-3.14159265358979 0 0" />
+    <parent
+      link="sprayer_base" />
+    <child
+      link="broadcast_nozzle1" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+
+  <link
+    name="camera_screw">
+  </link>
+  
+  <joint
+    name="camera_screw_j"
+    type="fixed">
+    <origin
+      xyz="0.056467 0 0.46516"
+      rpy="0 1.1345 0" />
+    <parent
+      link="sprayer_base" />
+    <child
+      link="camera_screw" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>
