@@ -33,7 +33,7 @@ def generate_launch_description():
 
     declare_zenoh = DeclareLaunchArgument(
         'zenoh', 
-        default_value='true', 
+        default_value='false', 
         description='Launch zenoh router')
 
     zenoh_start = Node(
