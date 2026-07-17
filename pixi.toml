@@ -63,6 +63,7 @@ ros-humble-foxglove-msgs = ">=2.3.0,<3"
 ros-humble-message-filters = ">=4.3.7,<5"
 pyserial = ">=3.5,<4"
 ros-humble-rviz2 = ">=11.2.18,<12"
+xacro = ">=2.1.1,<3"
 
 # embedded firmware development
 
