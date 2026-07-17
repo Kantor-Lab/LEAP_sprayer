@@ -5,6 +5,9 @@
 <robot
   name="sprayerAssy2"
   xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find realsense2_description)/urdf/_d435.urdf.xacro" />
+
   <link
     name="sprayer_base">
     <inertial>
@@ -188,4 +191,8 @@
     <axis
       xyz="0 0 0" />
   </joint>
+
+  <xacro:sensor_d435 parent="camera_screw" name="camera" use_nominal_extrinsics="true">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:sensor_d435>
 </robot>
