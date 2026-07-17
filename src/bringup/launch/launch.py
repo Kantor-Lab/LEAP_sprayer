@@ -137,18 +137,68 @@ def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
     
     return tracker_nodes
 
+def select_nozzle_dispatcher(nozzle_dispatcher_choice: str) -> list[LaunchDescriptionEntity]:
+    nozzle_dispatcher_nodes: list[LaunchDescriptionEntity] = []
+
+    match nozzle_dispatcher_choice:
+        case 'hardcoded':
+            nozzle_dispatcher_nodes.append(
+                Node(
+                    package='spray_serialctrl',
+                    executable='dispatcher',
+                    name='nozzle_command_dispatcher',
+                    arguments=[],
+                )
+            )
+        case _:
+            raise ValueError(f'Invalid nozzle dispatcher choice: {nozzle_dispatcher_choice}')
+    
+    return nozzle_dispatcher_nodes
+
+
+def select_nozzle_controller(nozzle_controller_choice: str) -> list[LaunchDescriptionEntity]:
+    nozzle_controller_nodes: list[LaunchDescriptionEntity] = []
+
+    match nozzle_controller_choice:
+        case 'arduino':
+            nozzle_controller_nodes.append(
+                Node(
+                    package='spray_serialctrl',
+                    executable='serial_controller',
+                    name='serial_controller',
+                    arguments=[],
+                )
+            )
+        case 'debug':
+            nozzle_controller_nodes.append(
+                Node(
+                    package='spray_serialctrl',
+                    executable='debug_serial_controller',
+                    name='debug_serial_controller',
+                    arguments=[],
+                )
+            )
+        case _:
+            raise ValueError(f'Invalid nozzle controller choice: {nozzle_controller_choice}')
+    
+    return nozzle_controller_nodes
+
 def evaluate_args(context: LaunchContext, *args, **kwargs) -> list[LaunchDescriptionEntity]:
     camera_choice = LaunchConfiguration('camera').perform(context)
     detector_choice = LaunchConfiguration('detector').perform(context)
     projector_choice = LaunchConfiguration('projector').perform(context)
     tracker_choice = LaunchConfiguration('tracker').perform(context)
+    nozzle_dispatcher_choice = LaunchConfiguration('nozzle_dispatcher').perform(context)
+    nozzle_controller_choice = LaunchConfiguration('nozzle_controller').perform(context)
 
     camera_nodes = select_camera(camera_choice)
     detector_nodes = select_detector(detector_choice)
     projector_nodes = select_projector(projector_choice)
     tracker_nodes = select_tracker(tracker_choice)
+    nozzle_dispatcher_nodes = select_nozzle_dispatcher(nozzle_dispatcher_choice)
+    nozzle_controller_nodes = select_nozzle_controller(nozzle_controller_choice)
 
-    return camera_nodes + detector_nodes + projector_nodes + tracker_nodes
+    return camera_nodes + detector_nodes + projector_nodes + tracker_nodes + nozzle_dispatcher_nodes + nozzle_controller_nodes
 
 def generate_launch_description() -> LaunchDescription:
     launch_rqt = LaunchConfiguration('image_viewer')
@@ -160,7 +210,9 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('camera', default_value='debug'),
         DeclareLaunchArgument('detector', default_value='owl'),
         DeclareLaunchArgument('projector', default_value='basic'),
-        DeclareLaunchArgument('tracker', default_value='debug'),        
+        DeclareLaunchArgument('tracker', default_value='debug'),
+        DeclareLaunchArgument('nozzle_dispatcher', default_value='hardcoded'),
+        DeclareLaunchArgument('nozzle_controller', default_value='debug'),
 
         Node(
             package='rqt_image_view',

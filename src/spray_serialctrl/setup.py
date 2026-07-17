@@ -24,7 +24,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'boxsub = spray_serialctrl.subscriber_member_function:main',
+            'dispatcher = spray_serialctrl.dispatcher:main',
+            'serial_controller = spray_serialctrl.serialcontroller:main',
+            'debug_serial_controller = spray_serialctrl.debug_serialcontroller:main',
         ],
     },
 )

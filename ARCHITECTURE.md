@@ -58,7 +58,9 @@ graph TB
 
   subgraph sprayer[Spray Control]
     direction TB
-    spray_control[Spray Serial Control Node] -->|USB Serial Communication| uno(Arduino UNO)
+    spray_dispatch[Nozzle Command Dispatcher] -->|std_msgs/msg/String| spray_command[/"/spraycommand"/]
+    spray_control[Spray Serial Controller] -->|USB Serial Communication| uno(Arduino UNO)
+    spray_command --> spray_control
     uno -->|I2C Communication| spray_driver_board_one(Driver Board 1)
     uno -->|I2C Communication| spray_driver_board_two(Driver Board 2)
   end
@@ -98,3 +100,63 @@ as the robot moves, even as weeds may move out of view
 
 This step also helps denoise the data using its knowledge of expected positions
 and the robot's velocity.
+
+### Nozzle Commands
+
+We use a custom text-based format for nozzle commands.
+It is documented below.
+
+<table>
+    <thead>
+        <tr>
+            <th colspan="5">Command</th>
+            <th colspan="2">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td rowspan="6">N</td>
+            <td colspan="4">X</td>
+            <td colspan="2">
+                Turns off all nozzles
+            </td>
+        </tr>
+        <tr>
+            <td rowspan="4">S</td>
+            <td colspan="3">L</td>
+            <td colspan="2">
+                Left spot sprayer. 🚧
+            </td>
+        </tr>
+        <tr>
+            <td rowspan="2">C</td>
+            <td>&lt;id&gt; 0&ndash;3</td>
+            <td>0</td>
+            <td colspan="2">
+                Center spot boom nozzle &lt;id&gt; off
+            </td>
+        </tr>
+        <tr>
+            <td>&lt;id&gt; 0&ndash;3</td>
+            <td>1</td>
+            <td colspan="2">
+                Center spot boom nozzle &lt;id&gt; on
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3">R</td>
+            <td colspan="2">
+                Right spot sprayer. 🚧
+            </td>
+        </tr>
+        <tr>
+            <td colspan="4">B</td>
+            <td colspan="2">
+                Broadcast sprayer. 🚧
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+See [`./src/spray_serialctrl/spray_serialctrl/serialcontroller.py`](./src/spray_serialctrl/spray_serialctrl/serialcontroller.py)
+for a Python implementation of this as a validation function.
