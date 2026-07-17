@@ -1,8 +1,10 @@
+import sys
 from typing import assert_never
 
 import rclpy
 from rclpy.node import Node
 import serial
+from serial.tools import list_ports
 from std_msgs.msg import String
 import time
 
@@ -43,12 +45,49 @@ def validate_cmd(cmd: str) -> bool:
 
     assert_never()
 
+def discover_arduino(baudrate: int = 115200) -> serial.Serial | None:
+    import os
+
+    requested_port = os.getenv('ARDUINO_PORT')
+
+    if requested_port is not None:
+        return serial.Serial(requested_port, baudrate)
+    
+    available_ports = list_ports.comports()
+
+    ARDUINO_VIDS = {
+        0x2341,  # Official Arduino
+        0x1A86,  # CH340 Clone
+        0x10C4,  # CP210x Clone
+        0x0403,  # FTDI Clone
+    }
+
+    candidate_ports = [port for port in available_ports if port.vid in ARDUINO_VIDS]
+
+    if not candidate_ports:
+        print("No Arduino found on the system. Found the following devices:\n\t", end='', file=sys.stderr)
+        print('\n\t'.join(f"{port.name}: {port.description}" for port in available_ports), file=sys.stderr)
+        return None # no valid ports
+
+    if len(candidate_ports) > 1:
+        print("Multiple possible Arduinos found on the system. Found the following devices:\n\t", end='', file=sys.stderr)
+        print('\n\t'.join(f"{port.name}: {port.description}" for port in candidate_ports), file=sys.stderr)
+        return None # too many options
+
+    return serial.Serial(candidate_ports[0].device, baudrate)
+
 class SpraySerialController(Node):
 
     def __init__(self):
         super().__init__('spray_serial_controller')
 
-        self.ser = serial.Serial('/dev/ttyUSB0', 115200)
+        ser = discover_arduino(baudrate=115200)
+        if ser is None:
+            raise ConnectionError("Failed to find an Arduino to connect to." \
+                "The 'ARDUINO_PORT' environment variable may be useful to specify the port, " \
+                "but if you are setting that, it either wasn't available"
+            )
+        self.ser = ser
         time.sleep(2)
         self.get_logger().info("Arduino connected.")
 
@@ -91,17 +130,17 @@ class SpraySerialController(Node):
 
 def main():
     rclpy.init(args=None)
-    node = SpraySerialController()
+    node: SpraySerialController | None = None
     try:
+        node = SpraySerialController()
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        import sys
-        
         print(f"Got error: {e}, shutting down spray serial controller", file=sys.stderr)
     finally:
-        node.destroy_node()
+        if node is not None: # could error on bootup,
+            node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
 
