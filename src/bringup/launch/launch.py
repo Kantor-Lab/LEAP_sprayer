@@ -245,6 +245,16 @@ def generate_launch_description() -> LaunchDescription:
                     '/detections3D_vis' : '/detections3D_raw_vis'
                 }.items()
             ),
+            # tracked detections visualizer
+            Node(
+                package='foxglove_compat',
+                executable='detections3D_visualizer',
+                name='detections3D_visualizer',
+                remappings={
+                    '/detections3D' : '/detections3D',
+                    '/detections3D_vis' : '/detections3D_vis'
+                }.items()
+            ),
         ],
         condition=IfCondition(launch_foxglove)),
 
