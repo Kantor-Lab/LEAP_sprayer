@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'test_emitter = tracking.test_emitter:main'
+            'test_emitter = tracking.test_emitter:main',
+            'constant_velocity_odom = tracking.constant_velocity_odom:main',
         ],
     },
 )

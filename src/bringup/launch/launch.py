@@ -203,10 +203,12 @@ def evaluate_args(context: LaunchContext, *args, **kwargs) -> list[LaunchDescrip
 def generate_launch_description() -> LaunchDescription:
     launch_rqt = LaunchConfiguration('image_viewer')
     launch_foxglove = LaunchConfiguration('foxglove')
+    debug_odom = LaunchConfiguration('debug_odom')
 
     return LaunchDescription([
         DeclareLaunchArgument('image_viewer', default_value='false'),
         DeclareLaunchArgument('foxglove', default_value='false'),
+        DeclareLaunchArgument('debug_odom', default_value='true'),
         DeclareLaunchArgument('camera', default_value='debug'),
         DeclareLaunchArgument('detector', default_value='owl'),
         DeclareLaunchArgument('projector', default_value='basic'),
@@ -271,6 +273,13 @@ def generate_launch_description() -> LaunchDescription:
                 'zenoh': 'false',
                 'rviz': 'false'
             }.items()
+        ),
+
+        Node(
+            package='tracking',
+            executable='constant_velocity_odom',
+            name='constant_velocity_odom',
+            condition=IfCondition(debug_odom)
         ),
 
         OpaqueFunction(function=evaluate_args)
