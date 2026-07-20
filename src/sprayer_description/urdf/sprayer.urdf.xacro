@@ -85,6 +85,24 @@
   </joint>
 
   <link
+    name="spot_nozzle0">
+  </link>
+
+  <joint
+    name="spot_nozzle0_j"
+    type="fixed">
+    <origin
+      xyz="0 -0.0665988000000001 -0.28575"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="spot_boom" />
+    <child
+      link="spot_nozzle0" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+
+  <link
     name="spot_nozzle1">
   </link>
 
@@ -92,7 +110,7 @@
     name="spot_nozzle1_j"
     type="fixed">
     <origin
-      xyz="0 -0.0665988000000001 -0.28575"
+      xyz="0 -0.0665988000000001 -0.09525"
       rpy="1.5707963267949 0 0" />
     <parent
       link="spot_boom" />
@@ -110,7 +128,7 @@
     name="spot_nozzle2_j"
     type="fixed">
     <origin
-      xyz="0 -0.0665988000000001 -0.09525"
+      xyz="0 -0.0665988000000001 0.09525"
       rpy="1.5707963267949 0 0" />
     <parent
       link="spot_boom" />
@@ -128,7 +146,7 @@
     name="spot_nozzle3_j"
     type="fixed">
     <origin
-      xyz="0 -0.0665988000000001 0.09525"
+      xyz="0 -0.0665988000000001 0.28575"
       rpy="1.5707963267949 0 0" />
     <parent
       link="spot_boom" />
@@ -139,29 +157,11 @@
   </joint>
 
   <link
-    name="spot_nozzle4">
+    name="broadcast_nozzle0">
   </link>
 
   <joint
-    name="spot_nozzle4_j"
-    type="fixed">
-    <origin
-      xyz="0 -0.0665988000000001 0.28575"
-      rpy="1.5707963267949 0 0" />
-    <parent
-      link="spot_boom" />
-    <child
-      link="spot_nozzle4" />
-    <axis
-      xyz="0 0 0" />
-  </joint>
-
-  <link
-    name="broadcast_nozzle1">
-  </link>
-
-  <joint
-    name="broadcast_nozzle1_j"
+    name="broadcast_nozzle0_j"
     type="fixed">
     <origin
       xyz="-0.050546 0.0484886 -0.0538988"
@@ -169,7 +169,7 @@
     <parent
       link="sprayer_base" />
     <child
-      link="broadcast_nozzle1" />
+      link="broadcast_nozzle0" />
     <axis
       xyz="0 0 0" />
   </joint>
