@@ -248,5 +248,20 @@ def generate_launch_description() -> LaunchDescription:
         ],
         condition=IfCondition(launch_foxglove)),
 
+        # Publish URDF joint states
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    get_package_share_directory('sprayer_description'),
+                    'launch',
+                    'sprayer_description.launch.py'
+                )
+            ),
+            launch_arguments={
+                'zenoh': 'false',
+                'rviz': 'false'
+            }.items()
+        ),
+
         OpaqueFunction(function=evaluate_args)
     ])
