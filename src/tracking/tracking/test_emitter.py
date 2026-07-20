@@ -1,165 +1,117 @@
+import numpy as np
 import rclpy
+import rclpy.time
 from rclpy.node import Node
-
-from geometry_msgs.msg import Point
-from std_msgs.msg import ColorRGBA
+import tf2_ros
 from vision_msgs.msg import Detection3DArray, Detection3D, ObjectHypothesisWithPose
-from visualization_msgs.msg import Marker, MarkerArray
 
-# Constants (measurements in meters)
-NUMNOZZLES = 4
-NOZZLESPACING = 0.1905
-SPRAYFOOTPRINT = 0.222
-BUFFER = 0.05
-OVERLAP = SPRAYFOOTPRINT - NOZZLESPACING
+# width (m) over which to distribute detections, centered on Y=0
+DIST_WIDTH = 1.0
+# distance (m) in front of the robot (along X axis) over which to distribute detections
+DIST_DEPTH = 0.5
+# lifetime (s) to continue publishing some detection
+# simplifies the logic, but must be tuned somewhat to match velocity
+DETECTION_LIFETIME = 10.0
+# frequency (hz) with which to add new weeds
+# proportional to the amount of detections
+WEED_FREQ = 1.0
 
 class BoxPublisher(Node):
-    
-    def __init__(self):
+
+    def __init__(self, rand_seed: int | None = None):
         super().__init__('box_publisher')
+
+        if rand_seed is None:
+            rand_seed = np.random.default_rng().integers(0, 2**32 - 1)
+        self.get_logger().info(f'Using random seed: {rand_seed}')
+        self.random = np.random.default_rng(rand_seed)
+
         self.box_pub = self.create_publisher(Detection3DArray, 'detections3D', 10)
-        self.marker_pub = self.create_publisher(MarkerArray, 'nozzle_markers', 10)
         self.timer = self.create_timer(0.1, self.timer_callback)
 
-        self.nozzle_spacing = NOZZLESPACING
-        self.spray_footprint = SPRAYFOOTPRINT
-        self.buffer = BUFFER
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
-        self.current_box_idx = 0
-        self.y_current = 0.5
-        self.speed = 0.1
+        self.boxes: list[Detection3D] = []
 
-        # x_center, width, height
-        self.scenarios = [
-                (0.00, 0.06, 0.06), # box perfectly fits in nozzle 0 solo zone
-                (0.1905, 0.06, 0.06), # box perfectly fits in nozzle 1 solo zone
-                (0.381, 0.06, 0.06), # box perfectly fits in nozzle 2 solo zone
-                (0.5715, 0.06, 0.06), # box perfectly fits in nozzle 3 solo zone
-                (0.1905, 0.220, 0.09), # box extends into overlap region, but can be covered by noz 0
-                (0.05, 0.25, 0.10), # box needs two noz 0, 1
-                (0.1905, 0.57, 0.08), # box needs three noz 0, 1, 2
-                (0.286, 0.762, 0.10), # box needs all four noz
-                (0.095, 0.03, 0.08), # box sits in overlap b/n two noz 0, 1
-        ]
-
+        self.prev_new_elem_time: rclpy.time.Time | None = None
 
     def timer_callback(self):
-        now = self.get_clock().now().to_msg()
+        now = self.get_clock().now()
+        now_msg = now.to_msg()
 
-        x_c, w, h  = self.scenarios[self.current_box_idx]
+        self.boxes = [box for box in self.boxes
+            if (now - rclpy.time.Time.from_msg(box.header.stamp)).nanoseconds / 1e9 < DETECTION_LIFETIME]
 
-        self.y_current -= self.speed * 0.1
-        if self.y_current + h/2 < -self.buffer * 2:
-            self.y_current = 0.5
-            self.current_box_idx = (self.current_box_idx + 1) % len(self.scenarios)
-            return
+        if self.prev_new_elem_time is None or (now - self.prev_new_elem_time).nanoseconds / 1e9 > (1/WEED_FREQ):
+            self.prev_new_elem_time = now
 
-        detection_array = Detection3DArray()
-        detection_array.header.frame_id = 'map'
-        detection_array.header.stamp = now
+            # Look up the robot's current position in odom
+            try:
+                tf = self.tf_buffer.lookup_transform(
+                    'odom', 'sprayer_base', tf2_ros.Time() # need 0 to get latest
+                )
+                robot_x = tf.transform.translation.x
+            except Exception as e:
+                # TF not available yet
+                self.get_logger().warn(f'TF not available yet: {e}')
+                return
 
-        detection =  Detection3D()
-        detection.header = detection_array.header
+            detection_x_values = self.random.normal(
+                loc=robot_x + DIST_DEPTH,
+                scale=0.05,
+                size=self.random.integers(0, 6)
+            )
+            detection_y_values = (self.random.random(
+                size=detection_x_values.shape
+            ) - 0.5) * DIST_WIDTH
+            detection_shapes = self.random.normal(
+                loc=0.05,
+                scale=0.01,
+                size=(detection_x_values.shape[0], 3)
+            ).clip(0.01, 0.1)
 
-        detection.bbox.center.position.x = x_c
-        detection.bbox.center.position.y = self.y_current
-        detection.bbox.center.position.z = 0.0
+            new_detections: list[Detection3D] = []
 
-        detection.bbox.size.x = w
-        detection.bbox.size.y = h
-        detection.bbox.size.z = 0.05
+            for x, y, (length, width, height) in zip(detection_x_values, detection_y_values, detection_shapes):
+                detection = Detection3D()
+                detection.header.frame_id = 'odom'
+                detection.header.stamp = now_msg
+                detection.bbox.center.position.x = x
+                detection.bbox.center.position.y = y
+                detection.bbox.center.position.z = height / 2
+                detection.bbox.size.x = length
+                detection.bbox.size.y = width
+                detection.bbox.size.z = height
+                detection.results = [ObjectHypothesisWithPose()]
+                new_detections.append(detection)
 
-        hypothesis = ObjectHypothesisWithPose()
-        detection.results = [hypothesis]
+            self.boxes.extend(new_detections)
 
-        detection_array.detections = [detection]
-        self.box_pub.publish(detection_array)
+        boxes_msg = Detection3DArray()
+        boxes_msg.header.frame_id = 'odom'
+        boxes_msg.header.stamp = now_msg
+        boxes_msg.detections = self.boxes
+        self.box_pub.publish(boxes_msg)
 
-        # stationary
-        marker_array = MarkerArray()
-
-        line_start_x = -0.3
-        line_end_x = 3 * NOZZLESPACING + 0.3
-
-        markers: list[Marker] = []
-        
-        # turn on zone -- lines
-        upper_line = Marker()
-        upper_line.header.frame_id = 'map'
-        upper_line.header.stamp = now
-        upper_line.id = 100
-        upper_line.type = Marker.LINE_STRIP
-        upper_line.action = Marker.ADD
-        upper_line.scale.x = 0.01
-        upper_line.color = ColorRGBA(r=1.0, g=1.0, b=0.0, a=0.8)
-        upper_line.points = [Point(x=line_start_x, y=self.buffer, z=0.0), Point(x=line_end_x, y=self.buffer, z=0.0)]
-        markers.append(upper_line)
-
-        lower_line = Marker()
-        lower_line.header.frame_id = 'map'
-        lower_line.header.stamp = now
-        lower_line.id = 101
-        lower_line.type = Marker.LINE_STRIP
-        lower_line.action = Marker.ADD
-        lower_line.scale.x = 0.01
-        lower_line.color = ColorRGBA(r=1.0, g=1.0, b=0.0, a=0.8)
-        lower_line.points = [Point(x=line_start_x, y=-self.buffer, z=0.0), Point(x=line_end_x, y=-self.buffer, z=0.0)]
-        markers.append(lower_line)
-        
-        for i in range(4):
-            noz_center_x = i * self.nozzle_spacing
-            if i % 2 == 0:
-                r, g, b = 0.0, 0.2, 0.5
-            else:
-                r, g, b = 0.0, 0.9, 0.9
-            
-            # nozzle footprints
-            footprint = Marker()
-            footprint.header.frame_id = 'map'
-            footprint.header.stamp = now
-            footprint.id = i
-            footprint.type = Marker.CUBE
-            footprint.action = Marker.ADD
-            footprint.pose.position.x = i * self.nozzle_spacing
-            footprint.pose.position.y = 0.0
-            footprint.pose.position.z = -0.01
-            footprint.scale.x = self.spray_footprint
-            footprint.scale.y = 0.06
-            footprint.scale.z = 0.005
-            footprint.color = ColorRGBA(r=r, g=g, b=b, a=0.5)
-            markers.append(footprint)
-            
-            # nozzle centers
-            pt = Marker()
-            pt.header.frame_id = 'map'
-            pt.header.stamp = now
-            pt.id = i+50
-            pt.type = Marker.SPHERE
-            pt.action = Marker.ADD
-            pt.pose.position.x = noz_center_x
-            pt.pose.position.y = 0.0
-            pt.pose.position.z = 0.02
-            pt.scale.x = 0.025
-            pt.scale.y = 0.025
-            pt.scale.z = 0.025
-            pt.color = ColorRGBA(r=1.0, g=0.0, b=0.0, a=1.0)
-            markers.append(pt)
-
-        marker_array.markers = markers
-
-        self.marker_pub.publish(marker_array)
-
-        
 def main(args=None):
+    import os
+
     rclpy.init()
-    box_publisher = BoxPublisher()
+
+    rand_seed = os.environ.get('RANDOM_SEED')
+    if rand_seed is not None:
+        rand_seed = int(rand_seed)
+    box_publisher = BoxPublisher(rand_seed=rand_seed)
     try:
         rclpy.spin(box_publisher)
     except KeyboardInterrupt:
         pass
     finally:
         box_publisher.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
