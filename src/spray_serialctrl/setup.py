@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'dispatcher = spray_serialctrl.dispatcher:main',
+            'tf_dispatcher = spray_serialctrl.tf_dispatcher:main',
             'serial_controller = spray_serialctrl.serialcontroller:main',
             'debug_serial_controller = spray_serialctrl.debug_serialcontroller:main',
         ],

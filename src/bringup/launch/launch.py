@@ -150,6 +150,15 @@ def select_nozzle_dispatcher(nozzle_dispatcher_choice: str) -> list[LaunchDescri
                     arguments=[],
                 )
             )
+        case 'tf':
+            nozzle_dispatcher_nodes.append(
+                Node(
+                    package='spray_serialctrl',
+                    executable='tf_dispatcher',
+                    name='tf_nozzle_command_dispatcher',
+                    arguments=[],
+                )
+            )
         case _:
             raise ValueError(f'Invalid nozzle dispatcher choice: {nozzle_dispatcher_choice}')
     
