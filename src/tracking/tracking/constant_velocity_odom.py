@@ -6,9 +6,12 @@ from tf2_ros import TransformBroadcaster
 
 # speed (m/s) and direction that this moves in
 CONSTANT_VELO = '0.25,+X'
+# height above the ground (odom frame) that the sprayer_base frame should be
+# overriden by GROUND_Z_HEIGHT environment variable if passed
+GROUND_Z_HEIGHT = 0.30
 
 class ConstantVelocityOdom(Node):
-    def __init__(self, vector: str):
+    def __init__(self, vector: str, ground_height: float):
         super().__init__('constant_velocity_odom')
 
         self.odom_frame_broadcast = TransformBroadcaster(self)
@@ -39,6 +42,8 @@ class ConstantVelocityOdom(Node):
 
         self.step = (self.direction / np.linalg.norm(self.direction)).astype(np.float64) * self.speed
 
+        self.ground_height = ground_height
+
         self.timer = self.create_timer(1.0/30, self.timer_callback)
 
         self.pose = np.array([0, 0, 0], dtype=np.float64)
@@ -58,7 +63,7 @@ class ConstantVelocityOdom(Node):
         t.child_frame_id = 'sprayer_base'
         t.transform.translation.x = self.pose[0]
         t.transform.translation.y = self.pose[1]
-        t.transform.translation.z = self.pose[2]
+        t.transform.translation.z = self.pose[2] + self.ground_height
         self.odom_frame_broadcast.sendTransform(t)
 
 def main(args=None):
@@ -67,9 +72,17 @@ def main(args=None):
     
     import os
     vector = os.environ.get('CONSTANT_VELO', CONSTANT_VELO)
+    try:
+        ground_height = os.environ.get('GROUND_Z_HEIGHT')
+        if ground_height is None:
+            ground_height = GROUND_Z_HEIGHT
+        else:
+            ground_height = float(ground_height)
+    except TypeError | ValueError:
+        ground_height = GROUND_Z_HEIGHT
     
     try:
-        node = ConstantVelocityOdom(vector)
+        node = ConstantVelocityOdom(vector, ground_height)
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
