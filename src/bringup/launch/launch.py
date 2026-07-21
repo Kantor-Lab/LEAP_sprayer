@@ -132,6 +132,15 @@ def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
                     arguments=[],
                 )
             )
+        case 'extrapolate':
+            tracker_nodes.append(
+                Node(
+                    package='tracking',
+                    executable='extrapolate_tracker',
+                    name='extrapolate_tracker',
+                    arguments=[],
+                )
+            )
         case _:
             raise ValueError(f'Invalid tracker choice: {tracker_choice}')
     
