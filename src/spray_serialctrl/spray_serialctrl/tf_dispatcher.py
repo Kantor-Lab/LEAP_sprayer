@@ -100,6 +100,10 @@ class NozzleCommandDispatcher(Node):
         self.fboom_current: list[int] | None = None
 
     def get_nozzle_boxes(self) -> BoundingBox3DArray:        
+        """
+        Returns a BoundingBox3DArray message containing the 3D bounding boxes of the nozzles.
+        Throws if the transform tree is not available.
+        """
         frames_yaml = self.tf_buffer.all_frames_as_yaml()
         frames_dict: dict[str, Any] = yaml.safe_load(frames_yaml)
 
@@ -109,7 +113,10 @@ class NozzleCommandDispatcher(Node):
 
         nozzle_frames.sort()
 
-        nozzle_to_baselink_transforms = [self.tf_buffer.lookup_transform('odom', nozzle_frame, tf2_ros.Time()) for nozzle_frame in nozzle_frames]
+        try:
+            nozzle_to_baselink_transforms = [self.tf_buffer.lookup_transform('odom', nozzle_frame, tf2_ros.Time()) for nozzle_frame in nozzle_frames]
+        except Exception as e:
+            raise e
 
         nozzle_heights = [transform.transform.translation.z for transform in nozzle_to_baselink_transforms]
 
@@ -151,7 +158,11 @@ class NozzleCommandDispatcher(Node):
 
         assert msg.header.frame_id == 'odom', "Expected detections in odom frame"
 
-        nozzle_boxes = self.get_nozzle_boxes()
+        try:
+            nozzle_boxes = self.get_nozzle_boxes()
+        except Exception as e:
+            self.get_logger().warn(f"TF not available yet: {e}")
+            return
 
         fboom_new = [0] * len(nozzle_boxes.boxes)
 
