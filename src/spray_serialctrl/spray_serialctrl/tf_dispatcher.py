@@ -113,7 +113,9 @@ class NozzleCommandDispatcher(Node):
 
         nozzle_heights = [transform.transform.translation.z for transform in nozzle_to_baselink_transforms]
 
-        box_widths: np.ndarray[float, np.dtype[np.float64]] = np.array(nozzle_heights) * np.tan(np.deg2rad(NOZZLE_ANGLE)) * 2
+        # divide nozzle angle by 2 to get half angle, compute the opposite side length (the ground),
+        # then double to get the full box width
+        box_widths: np.ndarray[float, np.dtype[np.float64]] = np.array(nozzle_heights) * np.tan(np.deg2rad(NOZZLE_ANGLE / 2)) * 2
         # nozzles are currently oriented in URDF/TF tree as y is along boom, x is forward, z is down
         box_sizes = [Vector3(y=width, x=NOZZLE_BOX_DEPTH, z=height) for width, height in zip(box_widths, nozzle_heights)]
 
