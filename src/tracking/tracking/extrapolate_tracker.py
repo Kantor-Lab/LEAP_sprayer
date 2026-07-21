@@ -116,7 +116,7 @@ class ExtrapolateTracker(Node):
                     frame_id='odom',
                     stamp=now_msg
                 ),
-                detections=transformed_detections
+                detections=self.boxes
             )
         )
 
