@@ -27,6 +27,7 @@ class ExtrapolateTracker(Node):
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         self.boxes: list[Detection3D] = []
+        self.id_index = 0
 
     def detection_callback(self, detections: Detection3DArray):
         now = self.get_clock().now()
@@ -45,20 +46,22 @@ class ExtrapolateTracker(Node):
             self.get_logger().warn(f'TF not available yet: {e}')
             return
 
-        transformed_detections = [
-            Detection3D(
-                bbox=BoundingBox3D(
-                    center=tf2_geometry_msgs.do_transform_pose(
-                        detection.bbox.center,
-                        tf
+        for detection in cast(Sequence[Detection3D], detections.detections):
+            self.boxes.append(
+                Detection3D(
+                    bbox=BoundingBox3D(
+                        center=tf2_geometry_msgs.do_transform_pose(
+                            detection.bbox.center,
+                            tf
+                        ),
+                        size=detection.bbox.size
                     ),
-                    size=detection.bbox.size
-                ),
-                id=detection.id,
-                header=Header(frame_id='odom', stamp=detection.header.stamp)
-            ) for detection in cast(Sequence[Detection3D], detections.detections)]
-
-        self.boxes.extend(transformed_detections)
+                    id=self.id_index, # have to unique so bounding boxes don't overwrite one another
+                    header=Header(frame_id='odom', stamp=detection.header.stamp)
+                )
+            )
+            self.id_index += 1
+            self.id_index &= 0x7FFFFFFF
 
         self.box_pub.publish(
             Detection3DArray(
