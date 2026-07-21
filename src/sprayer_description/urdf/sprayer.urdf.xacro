@@ -192,7 +192,7 @@
       xyz="0 0 0" />
   </joint>
 
-  <xacro:sensor_d435 parent="camera_screw" name="camera" use_nominal_extrinsics="true">
+  <xacro:sensor_d435 parent="camera_screw" name="D435" use_nominal_extrinsics="true">
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </xacro:sensor_d435>
 </robot>
