@@ -56,7 +56,7 @@ class ExtrapolateTracker(Node):
                         ),
                         size=detection.bbox.size
                     ),
-                    id=self.id_index, # have to unique so bounding boxes don't overwrite one another
+                    id=str(self.id_index), # have to unique so bounding boxes don't overwrite one another
                     header=Header(frame_id='odom', stamp=detection.header.stamp)
                 )
             )
