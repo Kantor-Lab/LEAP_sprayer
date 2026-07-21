@@ -4,6 +4,9 @@ import rclpy
 from rclpy.node import Node
 from tf2_ros import TransformBroadcaster
 
+# speed (m/s) and direction that this moves in
+CONSTANT_VELO = '0.25,+X'
+
 class ConstantVelocityOdom(Node):
     def __init__(self, vector: str):
         super().__init__('constant_velocity_odom')
@@ -63,7 +66,7 @@ def main(args=None):
     node: ConstantVelocityOdom | None = None
     
     import os
-    vector = os.environ.get('CONSTANT_VELO', '0.25,+X')
+    vector = os.environ.get('CONSTANT_VELO', CONSTANT_VELO)
     
     try:
         node = ConstantVelocityOdom(vector)
