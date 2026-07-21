@@ -15,6 +15,8 @@ DETECTION_LIFETIME = 10.0
 # frequency (hz) with which to add new weeds
 # proportional to the amount of detections
 WEED_FREQ = 1.0
+# max num weeds spawned on every spawn interval
+WEED_SPAWN_COUNT = 3
 
 class BoxPublisher(Node):
 
@@ -60,7 +62,7 @@ class BoxPublisher(Node):
             detection_x_values = self.random.normal(
                 loc=robot_x + DIST_DEPTH,
                 scale=0.05,
-                size=self.random.integers(0, 6)
+                size=self.random.integers(0, WEED_SPAWN_COUNT)
             )
             detection_y_values = (self.random.random(
                 size=detection_x_values.shape
