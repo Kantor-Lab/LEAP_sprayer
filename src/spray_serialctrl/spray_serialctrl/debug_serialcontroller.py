@@ -8,7 +8,7 @@ from .serialcontroller import validate_cmd
 
 def find_max_boom_index() -> int:
     for i in range(10):
-        cmd = f"NSC{i}{0}"
+        cmd = f"NSC{i}{0}\n"
         try:
             if not validate_cmd(cmd):
                 return i - 1

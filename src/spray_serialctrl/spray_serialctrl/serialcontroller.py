@@ -9,12 +9,16 @@ from std_msgs.msg import String
 import time
 
 def validate_cmd(cmd: str) -> bool:
+    # super important to newline terminate for serial controller
+    if len(cmd) > 0 and cmd[-1] != '\n':
+        return False
+        
     try:
         match cmd[0]:
             case 'N':
                 match cmd[1]:
                     case 'X':
-                        return len(cmd) == 2 # no acceptable args
+                        return len(cmd) == len('NX\n') # no acceptable args
                     case 'S':
                         match cmd[2]:
                             case 'C':
@@ -121,7 +125,7 @@ class SpraySerialController(Node):
 
     def destroy_node(self):
         if hasattr(self, 'serial') and self.ser.is_open:
-            self.ser.write(b'NX')
+            self.ser.write(b'NX\n')
             self.get_logger().info("Reset all nozzles")
             self.ser.close()
             self.get_logger().info("Serial port closed")

@@ -58,7 +58,7 @@ class NozzleCommandDispatcher(Node):
         fboom_new = [0] * NUMNOZZLES
 
         if not msg.detections:
-            self.command_publisher.publish(String(data="NX"))
+            self.command_publisher.publish(String(data="NX\n"))
             self.get_logger().info("No bounding boxes received")
             return
         for detection in msg.detections: # grab all boxes
@@ -76,7 +76,7 @@ class NozzleCommandDispatcher(Node):
         for n in range(0, len(fboom_new)):
             if fboom_new[n] != self.fboom_current[n]:
                 self.command_publisher.publish(
-                    String(data=f"NSC{n}{fboom_new[n]}")
+                    String(data=f"NSC{n}{fboom_new[n]}\n")
                 )
         self.fboom_current = fboom_new
 

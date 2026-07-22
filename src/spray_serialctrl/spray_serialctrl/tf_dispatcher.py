@@ -153,7 +153,7 @@ class NozzleCommandDispatcher(Node):
 
     def listener_callback(self, msg: Detection3DArray):
         if not msg.detections:
-            self.command_publisher.publish(String(data="NX"))
+            self.command_publisher.publish(String(data="NX\n"))
             return
 
         assert msg.header.frame_id == 'odom', "Expected detections in odom frame"
@@ -180,7 +180,7 @@ class NozzleCommandDispatcher(Node):
         for n in range(0, len(fboom_new)):
             if fboom_new[n] != self.fboom_current[n]:
                 self.command_publisher.publish(
-                    String(data=f"NSC{n}{fboom_new[n]}")
+                    String(data=f"NSC{n}{fboom_new[n]}\n")
                 )
         self.fboom_current = fboom_new
 

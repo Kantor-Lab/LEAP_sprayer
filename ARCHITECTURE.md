@@ -109,7 +109,7 @@ It is documented below.
 <table>
     <thead>
         <tr>
-            <th colspan="5">Command</th>
+            <th colspan="6">Command</th>
             <th colspan="2">Description</th>
         </tr>
     </thead>
@@ -117,6 +117,7 @@ It is documented below.
         <tr>
             <td rowspan="6">N</td>
             <td colspan="4">X</td>
+            <td rowspan="6"><code>\n</code></td>
             <td colspan="2">
                 Turns off all nozzles
             </td>
