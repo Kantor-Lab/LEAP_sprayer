@@ -99,7 +99,13 @@ class NozzleCommandDispatcher(Node):
 
         self.fboom_current: list[int] | None = None
 
-    def get_nozzle_boxes(self) -> BoundingBox3DArray:        
+        self.spray_box_publisher = self.create_publisher(
+            Detection3DArray,
+            'debug_spray_boxes',
+            10
+        )
+
+    def get_nozzle_boxes(self) -> BoundingBox3DArray:
         """
         Returns a BoundingBox3DArray message containing the 3D bounding boxes of the nozzles.
         Throws if the transform tree is not available.
@@ -147,6 +153,18 @@ class NozzleCommandDispatcher(Node):
         ]
 
         nozzle_boxes = BoundingBox3DArray(header=Header(frame_id='odom'), boxes=bounding_boxes_base)
+
+        now_msg = self.get_clock().now().to_msg()
+        self.spray_box_publisher.publish(
+            Detection3DArray(
+                header=Header(frame_id='odom', stamp=now_msg),
+                detections=[
+                    Detection3D(
+                        bbox=bbox
+                    ) for bbox in bounding_boxes_base
+                ]
+            )
+        )
 
         return nozzle_boxes
         
