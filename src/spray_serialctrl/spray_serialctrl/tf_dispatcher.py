@@ -174,7 +174,8 @@ class NozzleCommandDispatcher(Node):
                     fboom_new[i] = 1
 
         for n in range(0, len(fboom_new)):
-            if fboom_new[n] != self.fboom_current[n]:
+            # safety check the array access to avoid a random racey edge case
+            if len(self.fboom_current) <= n or fboom_new[n] != self.fboom_current[n]:
                 self.command_publisher.publish(
                     String(data=f"NSC{n}{fboom_new[n]}\n")
                 )
