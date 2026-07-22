@@ -152,10 +152,6 @@ class NozzleCommandDispatcher(Node):
         
 
     def listener_callback(self, msg: Detection3DArray):
-        if not msg.detections:
-            self.command_publisher.publish(String(data="NX\n"))
-            return
-
         assert msg.header.frame_id == 'odom', "Expected detections in odom frame"
 
         try:

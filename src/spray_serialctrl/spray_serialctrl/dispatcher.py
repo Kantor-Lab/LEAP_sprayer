@@ -57,10 +57,6 @@ class NozzleCommandDispatcher(Node):
     def listener_callback(self, msg: Detection3DArray):
         fboom_new = [0] * NUMNOZZLES
 
-        if not msg.detections:
-            self.command_publisher.publish(String(data="NX\n"))
-            self.get_logger().info("No bounding boxes received")
-            return
         for detection in msg.detections: # grab all boxes
             detection = cast(Detection3D, detection)
             x = detection.bbox.center.position.x

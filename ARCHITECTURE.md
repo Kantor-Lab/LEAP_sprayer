@@ -119,7 +119,7 @@ It is documented below.
             <td colspan="4">X</td>
             <td rowspan="6"><code>\n</code></td>
             <td colspan="2">
-                Turns off all nozzles
+                Shut down controller. Reserved for internal use, do not send over ROS.
             </td>
         </tr>
         <tr>
