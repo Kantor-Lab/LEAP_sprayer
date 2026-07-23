@@ -275,6 +275,16 @@ def generate_launch_description() -> LaunchDescription:
                     '/detections3D_vis' : '/detections3D_vis'
                 }.items()
             ),
+            # sprayer bounding box visualizer
+            Node(
+                package='foxglove_compat',
+                executable='detections3D_visualizer',
+                name='debug_spray_box_visualizer',
+                remappings={
+                    '/detections3D' : '/debug_spray_boxes',
+                    '/detections3D_vis' : '/debug_spray_boxes_vis'
+                }.items()
+            ),
         ],
         condition=IfCondition(launch_foxglove)),
 
