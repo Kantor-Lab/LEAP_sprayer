@@ -87,3 +87,24 @@ cmd = """
     cd firmware/solenoid_controller/ && \
     platformio run -e {{ controller }} {% if do_upload == 'upload' %}--target upload{% endif %}
     """
+
+[feature.check.dependencies]
+ruff = "*"
+
+[environments.check]
+features = ["check"]
+
+[feature.check.tasks.check]
+default-environment = "check"
+args = [
+    # if fix is false, don't run format, unless format is explicitly true
+    # if fix is true, run format unless explicity false
+    { arg = "fix", default = "no_fix", choices = ["fix", "no_fix"] },
+    { arg = "format", default = "", choices = ["", "reformat", "no_reformat"] }
+]
+cmd = """
+    {% if format == 'reformat' or (fix == 'fix' and format == '') %} \
+    ruff format src/ && \
+    {% endif %}\
+    ruff check {% if fix == 'fix' %}--fix{% endif %} src/
+    """
