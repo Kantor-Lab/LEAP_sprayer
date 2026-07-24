@@ -41,7 +41,7 @@ class ExtrapolateTracker(Node):
             tf = self.tf_buffer.lookup_transform(
                 'odom', detections.header.frame_id, tf2_ros.Time() # need 0 to get latest
             )
-        except Exception as e:
+        except tf2_ros.LookupException as e: # type: ignore
             # TF not available yet
             self.get_logger().warn(f'TF not available yet: {e}')
             return

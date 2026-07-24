@@ -54,7 +54,7 @@ class BoxPublisher(Node):
                     'odom', 'sprayer_base', tf2_ros.Time() # need 0 to get latest
                 )
                 robot_x = tf.transform.translation.x
-            except Exception as e:
+            except tf2_ros.LookupException as e: # type: ignore
                 # TF not available yet
                 self.get_logger().warn(f'TF not available yet: {e}')
                 return

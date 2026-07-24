@@ -315,7 +315,7 @@ class NozzleCommandDispatcher(Node):
 
         try:
             nozzle_boxes_np = self.get_nozzle_boxes()
-        except Exception as e:
+        except tf2_ros.LookupException as e: # type: ignore
             self.get_logger().warn(f"TF not available yet: {e}")
             return
 
