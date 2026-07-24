@@ -5,10 +5,15 @@ footprint as a rectangle with a fixed depth and a width given by nozzle angle
 """
 
 import re
+import sys
 from typing import Any, cast
+import typing
+import builtin_interfaces
+from builtin_interfaces.msg import Time
 from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
 import yaml
 
+from foxglove_msgs.msg import Color, LinePrimitive, SceneEntity, SceneEntityDeletion, SceneUpdate
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -21,6 +26,69 @@ NOZZLE_ANGLE = 40 # degrees
 
 BUFFER = 0.050 # meters
 NOZZLE_BOX_DEPTH = 0.01 # meters
+
+def bbox_to_line(bbox: BoundingBox3D, color: Color) -> LinePrimitive:
+    """Return a LINE_LIST LinePrimitive that draws the 12 edges of a 3D bounding box.
+ 
+    The LinePrimitive's ``pose`` is set to the bounding box center, so all
+    corner points live in the box-local frame — Foxglove applies the
+    orientation quaternion for you, and the wireframe rotates correctly.
+ 
+    Parameters
+    ----------
+    bbox : BoundingBox3D
+        Source bounding box (center pose + xyz size).
+ 
+    Returns
+    -------
+    LinePrimitive
+    """
+ 
+    hx = bbox.size.x / 2.0
+    hy = bbox.size.y / 2.0
+    hz = bbox.size.z / 2.0
+ 
+    # 8 vertices of an axis-aligned box centred at the local origin.
+    #
+    #       3 -------- 2
+    #      /|         /|
+    #     7 -------- 6 |
+    #     |  |       |  |       +z  +y
+    #     | 0 -------|- 1        | /
+    #     |/         |/          |/
+    #     4 -------- 5           +------ +x
+    #
+    corners = [
+        Point(x=-hx, y=-hy, z=-hz),  # 0
+        Point(x=+hx, y=-hy, z=-hz),  # 1
+        Point(x=+hx, y=+hy, z=-hz),  # 2
+        Point(x=-hx, y=+hy, z=-hz),  # 3
+        Point(x=-hx, y=-hy, z=+hz),  # 4
+        Point(x=+hx, y=-hy, z=+hz),  # 5
+        Point(x=+hx, y=+hy, z=+hz),  # 6
+        Point(x=-hx, y=+hy, z=+hz),  # 7
+    ]
+ 
+    # 12 edges as index pairs into *corners* (LINE_LIST: every two indices
+    # form one segment).
+    #   bottom face  |  top face    |  verticals
+    indices = [
+        0, 1,  1, 2,  2, 3,  3, 0,   # bottom
+        4, 5,  5, 6,  6, 7,  7, 4,   # top
+        0, 4,  1, 5,  2, 6,  3, 7,   # vertical pillars
+    ]
+ 
+    line = LinePrimitive(
+        type=LinePrimitive.LINE_LIST,
+        pose=bbox.center,
+        thickness=0.01,
+        scale_invariant=False,
+        points=corners,
+        color=color,
+        colors=[],
+        indices=indices,
+    )
+    return line
 
 def _quat_to_axes(q: Quaternion) -> np.ndarray:
     """Quaternion to 3×3 rotation matrix; columns are the local x/y/z axes."""
@@ -78,6 +146,94 @@ def boxes_overlap(a: BoundingBox3D, b: BoundingBox3D, buffer: float = 0.0) -> bo
 
     return True
 
+# a single bounding box, represented as [center_x, center_y, center_z, length, width, height]
+# corresponds to BoundingBox3D(
+#     center=Pose(
+#         position=Point(x=center_x, y=center_y, z=center_z),
+#         orientation=Quaternion(x=0, y=0, z=0, w=1), # identity rotation
+#     ),
+#     size=Vector3(
+#         x=length,
+#         y=width,
+#         z=height,
+#     )
+# )
+AlignedBoundingBox: typing.TypeAlias = np.ndarray[float, np.dtype[np.float64]]
+
+# a collection of aligned bounding boxes, represented as [[center1_x, center1_y, center1_z, length1, width1, height1], ...]
+AlignedBoundingBoxArray: typing.TypeAlias = np.ndarray[tuple[float, float], np.dtype[np.float64]]
+
+def np_to_bbox_list(bboxes: AlignedBoundingBoxArray) -> list[BoundingBox3D]:
+    assert bboxes.shape[1] == 6, "bboxes must be a 2D array with 6 columns (center_x, center_y, center_z, length, width, height)"
+    
+    return [
+        BoundingBox3D(
+            center=Pose(
+                position=Point(x=center_x, y=center_y, z=center_z),
+                orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0), # identity rotation
+            ),
+            size=Vector3(x=length, y=width, z=height)
+        )
+        for center_x, center_y, center_z, length, width, height in bboxes
+    ]
+
+def get_nozzle_box_intersections(
+    boxes_nozzles: AlignedBoundingBoxArray
+) -> tuple[AlignedBoundingBoxArray, AlignedBoundingBoxArray]:
+    
+    """
+    Returns the unique and intersection components of side-by-side nozzle boxes.
+    If n is the number of nozzles, this gives (n, n-1) as the lengths of these.
+
+    Assumptions:
+        * every box only intersects with its neighbors on either side
+        * box centers only differ along the y axis
+          (they are allowed to differ otherwise, but this won't be accounted for)
+        * boxes have no rotation
+    """
+    
+    assert boxes_nozzles.shape[1] == 6
+    # pair up adjacent boxes into windows into the two of them
+    boxes_adjacent = np.lib.stride_tricks.sliding_window_view(boxes_nozzles, window_shape=(2,6))
+    boxes_adjacent = boxes_adjacent.squeeze(axis=1) # there won't be anything it iterate along the 6-elem axis, but the sliding window adds a 1 axis
+    assert boxes_adjacent.shape[0] == boxes_nozzles.shape[0] - 1 \
+        and boxes_adjacent.shape[1] == 2 and boxes_adjacent.shape[2] == 6, f"Invalid shape {boxes_adjacent.shape = }"
+
+    # dist between box centers on y axis
+    dist_actl = np.abs(boxes_adjacent[:, 0, 1] - boxes_adjacent[:, 1, 1])
+
+    # dist at which there would be exactly 0 overlap
+    dist_abut = (boxes_adjacent[:, 0, 4] + boxes_adjacent[:, 1, 4]) / 2
+
+    # clamp the overlap width to 0 (no overlap) or positive (overlap)
+    dist_over = np.clip(dist_abut - dist_actl, a_min=0, a_max=None)
+    dist_over = np.squeeze(dist_over) # multiple extra axes, really just 1D now
+
+    # 0 pad the ends to make summing have no special cases
+    widths_intersect = np.empty(boxes_nozzles.shape[0] + 1)
+    widths_intersect[0] = 0
+    widths_intersect[1:-1] = dist_over
+    widths_intersect[-1] = 0
+
+    # average the old dimensions and positions
+    # (probably not necessary aside from the y values, but it gracefully handles differences)
+    boxes_intersect: AlignedBoundingBoxArray = np.sum(boxes_adjacent, axis=1) / 2
+
+    boxes_intersect[:, 4] = widths_intersect[1:-1]
+
+    # remove both ends that intersect from the width
+    np.subtract(
+        np.reshape(boxes_nozzles[:, 4], (-1,)),
+        (widths_intersect[:-1] + widths_intersect[1:]),
+        out=boxes_nozzles[:, 4] # send it straight into boxes_nozzles width, no unnecessary copying
+    )
+    # shift centers where necessary (where an unequal amount has been removed from both sides,
+    # most notably the edges)
+    boxes_nozzles[:, 1] += (widths_intersect[:-1] - widths_intersect[1:]) / 2.0
+    
+           # now updated
+    return boxes_nozzles, boxes_intersect
+
 class NozzleCommandDispatcher(Node):
 
     def __init__(self):
@@ -100,14 +256,14 @@ class NozzleCommandDispatcher(Node):
         self.fboom_current: list[int] | None = None
 
         self.spray_box_publisher = self.create_publisher(
-            Detection3DArray,
+            SceneUpdate,
             'debug_spray_boxes',
             10
         )
 
-    def get_nozzle_boxes(self) -> BoundingBox3DArray:
+    def get_nozzle_boxes(self) -> AlignedBoundingBoxArray:
         """
-        Returns a BoundingBox3DArray message containing the 3D bounding boxes of the nozzles.
+        Returns an array of bounding boxes for the nozzles, in the odom frame.
         Throws if the transform tree is not available.
         """
         frames_yaml = self.tf_buffer.all_frames_as_yaml()
@@ -115,81 +271,111 @@ class NozzleCommandDispatcher(Node):
 
         nozzle_frame_name = r'spot_nozzle\d' # need to change to \d+ to support more than 10 nozzles
         
-        nozzle_frames = [name for name in frames_dict.keys() if re.match(nozzle_frame_name, name)]
+        nozzle_frames = [name for name in frames_dict if re.match(nozzle_frame_name, name)]
 
         nozzle_frames.sort()
 
-        try:
-            nozzle_to_baselink_transforms = [self.tf_buffer.lookup_transform('odom', nozzle_frame, tf2_ros.Time()) for nozzle_frame in nozzle_frames]
-        except Exception as e:
-            raise e
+        # may throw
+        nozzle_to_baselink_transforms = [self.tf_buffer.lookup_transform('odom', nozzle_frame, tf2_ros.Time()) for nozzle_frame in nozzle_frames]
 
-        nozzle_heights = [transform.transform.translation.z for transform in nozzle_to_baselink_transforms]
+        nozzle_heights: np.ndarray[float, np.dtype[np.float64]] = np.array(
+            [transform.transform.translation.z for transform in nozzle_to_baselink_transforms])
 
         # divide nozzle angle by 2 to get half angle, compute the opposite side length (the ground),
         # then double to get the full box width
-        box_widths: np.ndarray[float, np.dtype[np.float64]] = np.array(nozzle_heights) * np.tan(np.deg2rad(NOZZLE_ANGLE / 2)) * 2
+        box_widths: np.ndarray[float, np.dtype[np.float64]] = nozzle_heights * np.tan(np.deg2rad(NOZZLE_ANGLE / 2)) * 2
         # nozzles are currently oriented in URDF/TF tree as y is along boom, x is forward, z is down
-        box_sizes = [Vector3(y=width, x=NOZZLE_BOX_DEPTH, z=height) for width, height in zip(box_widths, nozzle_heights)]
+        box_sizes = np.empty((len(nozzle_heights), 3))
+        box_sizes[:, 0] = NOZZLE_BOX_DEPTH
+        box_sizes[:, 1] = box_widths
+        box_sizes[:, 2] = nozzle_heights
 
         # in individual nozzle frames
-        bounding_boxes = [
-            BoundingBox3D(
-                center=Pose(
-                    position=Point(x=0.0, y=0.0, z=height / 2.0),
-                    orientation=Quaternion(w=1.0), # identity
-                ),
-                size=size
-            ) for size, height in zip(box_sizes, nozzle_heights)]
-
-        bounding_boxes_base = [
-            BoundingBox3D(
-                center=tf2_geometry_msgs.do_transform_pose(
-                    bbox.center,
-                    transform
-                ),
-                size=bbox.size,
-            ) for bbox, transform in zip(bounding_boxes, nozzle_to_baselink_transforms)
+        centers_local = [
+            Pose(
+                position=Point(x=0.0, y=0.0, z=height / 2.0),
+                orientation=Quaternion(w=1.0), # identity
+            ) for height in cast(list[float], nozzle_heights)
         ]
 
-        nozzle_boxes = BoundingBox3DArray(header=Header(frame_id='odom'), boxes=bounding_boxes_base)
+        centers_base = [
+            tf2_geometry_msgs.do_transform_pose(
+                    pose,
+                    transform
+                ) for pose, transform in zip(centers_local, nozzle_to_baselink_transforms)
+        ]
 
-        now_msg = self.get_clock().now().to_msg()
-        self.spray_box_publisher.publish(
-            Detection3DArray(
-                header=Header(frame_id='odom', stamp=now_msg),
-                detections=[
-                    Detection3D(
-                        bbox=bbox
-                    ) for bbox in bounding_boxes_base
-                ]
-            )
-        )
+        centers_base_np = np.array([[p.position.x, p.position.y, p.position.z] for p in centers_base])
 
-        return nozzle_boxes
+        return np.hstack((centers_base_np, box_sizes))
         
 
     def listener_callback(self, msg: Detection3DArray):
         assert msg.header.frame_id == 'odom', "Expected detections in odom frame"
 
         try:
-            nozzle_boxes = self.get_nozzle_boxes()
+            nozzle_boxes_np = self.get_nozzle_boxes()
         except Exception as e:
             self.get_logger().warn(f"TF not available yet: {e}")
             return
 
-        fboom_new = [0] * len(nozzle_boxes.boxes)
+        fboom_new = [0] * nozzle_boxes_np.shape[0]
 
         if self.fboom_current is None:
-            self.fboom_current = [0] * len(nozzle_boxes.boxes)
+            self.fboom_current = [0] * nozzle_boxes_np.shape[0]
 
         assert self.fboom_current is not None, "fboom_current not initialized"
 
+        boxes_unique, boxes_intersect = get_nozzle_box_intersections(nozzle_boxes_np)
+        boxes_all: list[None | BoundingBox3D] = [None] * (boxes_unique.shape[0] + boxes_intersect.shape[0])
+        boxes_all[::2] = np_to_bbox_list(boxes_unique)
+        boxes_all[1::2] = np_to_bbox_list(boxes_intersect)
+
+        stamp = self.get_clock().now().to_msg()
+
+        self.spray_box_publisher.publish(
+            SceneUpdate(
+                deletions=[
+                    SceneEntityDeletion(
+                        timestamp=stamp,
+                        type=SceneEntityDeletion.ALL
+                    )
+                ],
+                entities=[
+                    SceneEntity(
+                        timestamp = stamp,
+                        frame_id = 'odom',
+                        id=f"uniquesprayerbox_{i // 2}" if i % 2 == 0 else f"intersectionsprayerbox_{i//2}_{i//2 + 1}",
+                        lines = [bbox_to_line(
+                            cast(BoundingBox3D, box),
+                            Color(r=1.0, a=1.0) if i % 2 == 0 else Color(g=1.0, b=1.0, a=1.0)
+                        )]
+                    ) for i, box in enumerate(boxes_all)
+                ]
+            )
+        )
+
+        # an item k indicates intersection hits between index k and index k+1 in the nozzles,
+        # so at least one of those must be turned on
+        intersect_list: list[int] = []
+
         for detection in msg.detections: # grab all boxes
             detection = cast(Detection3D, detection)
-            for i, nozzle_box in enumerate(nozzle_boxes.boxes):
-                if boxes_overlap(detection.bbox, nozzle_box, BUFFER):
+
+            for i, box_intersect in enumerate(boxes_all[1::2]):
+                assert box_intersect is not None, f"Invalid box at index {i * 2 + 1} in boxes_intersect"
+                if boxes_overlap(detection.bbox, box_intersect, 0): # buffer must match unique to minimize flickering
+                    intersect_list.append(i)
+
+            for i, box_unique in enumerate(boxes_all[::2]):
+                assert box_unique is not None, f"Invalid box at index {i * 2} in boxes_unique"
+                if boxes_overlap(detection.bbox, box_unique, 0): # no buffer on unique
                     fboom_new[i] = 1
+
+        for intersect in intersect_list:
+            assert intersect < len(fboom_new) - 1, f"Invalid intersect at index {intersect} given {len(fboom_new)} nozzles"
+            if not (fboom_new[intersect] or fboom_new[intersect + 1]):
+                fboom_new[intersect] = 1
 
         for n in range(0, len(fboom_new)):
             # safety check the array access to avoid a random racey edge case
@@ -207,10 +393,6 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        import sys
-
-        print(f"Got error: {e}, shutting down tf line nozzle command dispatcher", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():
