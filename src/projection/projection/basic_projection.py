@@ -112,8 +112,6 @@ class BasicProjectionNode(Node):
         self.boxes_pub_.publish(detections3D_msg)
 
 def main():
-    import sys
-    
     rclpy.init()
 
     node = BasicProjectionNode()
@@ -122,8 +120,6 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        print(f"\033[31mGot error: {e}, shutting down debug visualizer node\033[0m", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():

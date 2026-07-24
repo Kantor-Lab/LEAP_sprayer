@@ -109,8 +109,6 @@ class OwlSegmenterNode(Node):
         self.detections2D_pub_.publish(bboxes_msg)
 
 def main():
-    import sys
-    
     rclpy.init()
 
     node = OwlSegmenterNode()
@@ -119,8 +117,6 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        print(f"Got error: {e}, shutting down OpenWeedLocator segmenter node", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():

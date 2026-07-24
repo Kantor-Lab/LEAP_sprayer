@@ -115,8 +115,6 @@ class Detection3DVisualizerNode(Node):
         self.updates_pub_.publish(scene_update_msg)
 
 def main():
-    import sys
-    
     rclpy.init()
 
     node = Detection3DVisualizerNode()
@@ -125,8 +123,6 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        print(f"Got error: {e}, shutting down debug visualizer node", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():

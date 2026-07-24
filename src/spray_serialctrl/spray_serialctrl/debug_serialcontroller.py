@@ -95,10 +95,6 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        import sys
-        
-        print(f"Got error: {e}, shutting down debug spray serial controller", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():

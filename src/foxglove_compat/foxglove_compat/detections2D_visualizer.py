@@ -77,8 +77,6 @@ class Detection2DVisualizerNode(Node):
         self.markers_pub_.publish(image_marker_array)
 
 def main():
-    import sys
-    
     rclpy.init()
 
     node = Detection2DVisualizerNode()
@@ -87,8 +85,6 @@ def main():
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    except Exception as e:
-        print(f"Got error: {e}, shutting down debug visualizer node", file=sys.stderr)
     finally:
         node.destroy_node()
         if rclpy.ok():
