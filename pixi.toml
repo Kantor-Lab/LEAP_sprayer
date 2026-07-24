@@ -103,8 +103,10 @@ args = [
     { arg = "format", default = "", choices = ["", "reformat", "no_reformat"] }
 ]
 cmd = """
-    {% if format == 'reformat' or (fix == 'fix' and format == '') %} \
-    ruff format src/ && \
+    ruff format src/ \
+    {% if format != 'reformat' and not (fix == 'fix' and format == '') %}\
+    --check \
     {% endif %}\
-    ruff check {% if fix == 'fix' %}--fix{% endif %} src/
+    && \
+    ruff check {% if fix == 'fix' %}--fix {% endif %}src/
     """
