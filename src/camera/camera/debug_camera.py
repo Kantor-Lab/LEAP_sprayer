@@ -7,11 +7,14 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, Image
 
+
 class DebugCameraNode(Node):
     def __init__(self):
         super().__init__('debug_camera_node')
 
-        self.get_logger().warn('Running debug camera node, which does not report depth (green color channel)')
+        self.get_logger().warn(
+            'Running debug camera node, which does not report depth (green color channel)'
+        )
 
         self.image_publisher_ = self.create_publisher(Image, '/image_raw', 10)
         self.depth_publisher_ = self.create_publisher(Image, '/depth_raw', 10)
@@ -21,9 +24,13 @@ class DebugCameraNode(Node):
         if cam_port:
             try:
                 cam_port = int(cam_port)
-                self.get_logger().info(f'DEBUG_CAMERA_PORT={cam_port}, starting debug stream from that')
+                self.get_logger().info(
+                    f'DEBUG_CAMERA_PORT={cam_port}, starting debug stream from that'
+                )
             except ValueError:
-                self.get_logger().warn(f'DEBUG_CAMERA_PORT invalid (got {cam_port}), starting debug stream from 0')
+                self.get_logger().warn(
+                    f'DEBUG_CAMERA_PORT invalid (got {cam_port}), starting debug stream from 0'
+                )
                 cam_port = 0
         else:
             self.get_logger().warn('DEBUG_CAMERA_PORT unset, starting debug stream from 0')
@@ -35,7 +42,9 @@ class DebugCameraNode(Node):
         while try_cam_port > 0:
             self.cap = cv2.VideoCapture(try_cam_port)
             if not self.cap.isOpened():
-                self.get_logger().warn(f"Couldn't open camera at port {try_cam_port}, trying lower value")
+                self.get_logger().warn(
+                    f"Couldn't open camera at port {try_cam_port}, trying lower value"
+                )
                 try_cam_port -= 1
             else:
                 break
@@ -43,7 +52,9 @@ class DebugCameraNode(Node):
             if cam_port == 0:
                 raise ConnectionError("Couldn't open camera at port 0")
             else:
-                raise ConnectionError(f"Couldn't open camera on any ports, tried 0 through {cam_port}")
+                raise ConnectionError(
+                    f"Couldn't open camera on any ports, tried 0 through {cam_port}"
+                )
 
         self.bridge = CvBridge()
 
@@ -51,7 +62,7 @@ class DebugCameraNode(Node):
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
-        assert self.cap is not None, "timer callback called before cap is initialized"
+        assert self.cap is not None, 'timer callback called before cap is initialized'
         ret, frame = self.cap.read()
         if ret:
             timestamp = self.get_clock().now().to_msg()
@@ -71,24 +82,18 @@ class DebugCameraNode(Node):
                 width=ros_image_msg.width,
                 distortion_model='plumb_bob',
                 d=[0.0, 0.0, 0.0, 0.0, 0.0],
-                k=[1.0, 0.0, 0.0,
-                   0.0, 1.0, 0.0,
-                   0.0, 0.0, 1.0],
-                r=[1.0, 0.0, 0.0,
-                   0.0, 1.0, 0.0,
-                   0.0, 0.0, 1.0],
-                p=[1.0, 0.0, 0.0, 0.0,
-                   0.0, 1.0, 0.0, 0.0,
-                   0.0, 0.0, 1.0, 0.0],
+                k=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+                r=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+                p=[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
             )
             identity_caminfo_msg.header.stamp = timestamp
             self.cam_info_publisher_.publish(identity_caminfo_msg)
-            
 
     def destroy_node(self):
         if self.cap is not None:
             self.cap.release()
         super().destroy_node()
+
 
 def main():
     rclpy.init()

@@ -10,6 +10,7 @@ CONSTANT_VELO = '0.25,+X'
 # overriden by GROUND_Z_HEIGHT environment variable if passed
 GROUND_Z_HEIGHT = 0.30
 
+
 class ConstantVelocityOdom(Node):
     def __init__(self, vector: str, ground_height: float):
         super().__init__('constant_velocity_odom')
@@ -21,8 +22,8 @@ class ConstantVelocityOdom(Node):
         try:
             speed, direction_arg = vector.split(',')
             self.speed = float(speed)
-        except ValueError:
-            raise invalid_error
+        except ValueError as err:
+            raise invalid_error from err
 
         match direction_arg.lower():
             case '+z':
@@ -40,11 +41,13 @@ class ConstantVelocityOdom(Node):
             case _:
                 raise invalid_error
 
-        self.step = (self.direction / np.linalg.norm(self.direction)).astype(np.float64) * self.speed
+        self.step = (self.direction / np.linalg.norm(self.direction)).astype(
+            np.float64
+        ) * self.speed
 
         self.ground_height = ground_height
 
-        self.timer = self.create_timer(1.0/30, self.timer_callback)
+        self.timer = self.create_timer(1.0 / 30, self.timer_callback)
 
         self.pose = np.array([0, 0, 0], dtype=np.float64)
         self.last_time = self.get_clock().now()
@@ -66,21 +69,20 @@ class ConstantVelocityOdom(Node):
         t.transform.translation.z = self.pose[2] + self.ground_height
         self.odom_frame_broadcast.sendTransform(t)
 
+
 def main(args=None):
     rclpy.init(args=args)
     node: ConstantVelocityOdom | None = None
-    
+
     import os
+
     vector = os.environ.get('CONSTANT_VELO', CONSTANT_VELO)
     try:
         ground_height = os.environ.get('GROUND_Z_HEIGHT')
-        if ground_height is None:
-            ground_height = GROUND_Z_HEIGHT
-        else:
-            ground_height = float(ground_height)
-    except TypeError | ValueError:
+        ground_height = float(ground_height) if ground_height is not None else GROUND_Z_HEIGHT
+    except (TypeError, ValueError):
         ground_height = GROUND_Z_HEIGHT
-    
+
     try:
         node = ConstantVelocityOdom(vector, ground_height)
         rclpy.spin(node)

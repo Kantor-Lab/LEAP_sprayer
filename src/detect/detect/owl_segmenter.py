@@ -5,13 +5,13 @@ from cv_bridge import CvBridge
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Image
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 
 
 def segment_green(
-    bgr: np.ndarray[tuple[int, int, int], np.dtype[np.uint8]]
+    bgr: np.ndarray[tuple[int, int, int], np.dtype[np.uint8]],
 ) -> np.ndarray[tuple[int, int], np.dtype[np.integer]]:
     assert bgr.ndim == 3 and bgr.shape[-1] == 3
 
@@ -22,12 +22,16 @@ def segment_green(
     h_low, h_high = (50, 150)
 
     h_channel = hsv[:, :, 0]
-    hsv_mask = cv2.inRange(h_channel, cast(cv2.typing.MatLike, h_low), cast(cv2.typing.MatLike, h_high))
+    hsv_mask = cv2.inRange(
+        h_channel, cast(cv2.typing.MatLike, h_low), cast(cv2.typing.MatLike, h_high)
+    )
 
     bgr16 = bgr.astype(np.uint16)
     exg = 2 * bgr16[:, :, 1] - bgr16[:, :, 2] - bgr16[:, :, 0]
 
-    exg_mask = cv2.inRange(exg, cast(cv2.typing.MatLike, exg_low), cast(cv2.typing.MatLike, exg_high))
+    exg_mask = cv2.inRange(
+        exg, cast(cv2.typing.MatLike, exg_low), cast(cv2.typing.MatLike, exg_high)
+    )
 
     mask = cv2.bitwise_and(exg_mask, hsv_mask)
 
@@ -35,7 +39,10 @@ def segment_green(
 
     return cast(np.ndarray[tuple[int, int], np.dtype[np.integer]], mask)
 
-def extract_bboxes(mask: np.ndarray) -> np.ndarray[tuple[int, int], np.dtype[np.integer]]:
+
+def extract_bboxes(
+    mask: np.ndarray,
+) -> np.ndarray[tuple[int, int], np.dtype[np.integer]]:
     assert mask.ndim == 2
 
     min_area = 100
@@ -47,11 +54,12 @@ def extract_bboxes(mask: np.ndarray) -> np.ndarray[tuple[int, int], np.dtype[np.
 
     kept_stats = stats[1:][keep]
     # stats in format [left, top, width, height, ...]
-    bboxes = kept_stats[:, cv2.CC_STAT_LEFT:cv2.CC_STAT_HEIGHT + 1]
+    bboxes = kept_stats[:, cv2.CC_STAT_LEFT : cv2.CC_STAT_HEIGHT + 1]
 
     assert bboxes.ndim == 2
-    
+
     return cast(np.ndarray[tuple[int, int], np.dtype[np.integer]], bboxes)
+
 
 class OwlSegmenterNode(Node):
     def __init__(self):
@@ -68,7 +76,8 @@ class OwlSegmenterNode(Node):
             depth=1,
         )
         self.image_sub_ = self.create_subscription(
-            Image, '/camera/color/image', self.image_callback, qos_profile=image_qos)
+            Image, '/camera/color/image', self.image_callback, qos_profile=image_qos
+        )
 
         self.detections2D_pub_ = self.create_publisher(Detection2DArray, '/detections2D', 10)
 
@@ -85,7 +94,7 @@ class OwlSegmenterNode(Node):
             left, top, width, height = bbox
             center_x = left + width / 2
             center_y = top + height / 2
-            
+
             detection = Detection2D()
             detection.bbox.center.position.x = float(center_x)
             detection.bbox.center.position.y = float(center_y)
@@ -93,10 +102,10 @@ class OwlSegmenterNode(Node):
             detection.bbox.size_y = float(height)
 
             hyp = ObjectHypothesisWithPose()
-            hyp.hypothesis.class_id = "weed"
+            hyp.hypothesis.class_id = 'weed'
             hyp.hypothesis.score = 1.0
             detection.results = [hyp]
-            
+
             detections.append(detection)
 
         bboxes_msg = Detection2DArray()
@@ -105,8 +114,9 @@ class OwlSegmenterNode(Node):
         bboxes_msg.header.stamp = msg.header.stamp
 
         bboxes_msg.detections = detections
-        
+
         self.detections2D_pub_.publish(bboxes_msg)
+
 
 def main():
     rclpy.init()

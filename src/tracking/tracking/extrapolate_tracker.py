@@ -1,19 +1,20 @@
-from typing import cast, Sequence
+from collections.abc import Sequence
+from typing import cast
 
 import rclpy
-import rclpy.time
 from rclpy.node import Node
+import rclpy.time
 from std_msgs.msg import Header
 import tf2_geometry_msgs
 import tf2_ros
-from vision_msgs.msg import BoundingBox3D, Detection3DArray, Detection3D
+from vision_msgs.msg import BoundingBox3D, Detection3D, Detection3DArray
 
 # lifetime (s) to continue publishing some detection
 # simplifies the logic, but must be tuned somewhat to match velocity
 DETECTION_LIFETIME = 10.0
 
-class ExtrapolateTracker(Node):
 
+class ExtrapolateTracker(Node):
     def __init__(self):
         super().__init__('extrapolate_tracker')
 
@@ -33,15 +34,21 @@ class ExtrapolateTracker(Node):
         now = self.get_clock().now()
         now_msg = now.to_msg()
 
-        self.boxes = [box for box in self.boxes
-            if (now - rclpy.time.Time.from_msg(box.header.stamp)).nanoseconds / 1e9 < DETECTION_LIFETIME]
+        self.boxes = [
+            box
+            for box in self.boxes
+            if (now - rclpy.time.Time.from_msg(box.header.stamp)).nanoseconds / 1e9
+            < DETECTION_LIFETIME
+        ]
 
         # Look up the robot's current position in odom
         try:
             tf = self.tf_buffer.lookup_transform(
-                'odom', detections.header.frame_id, tf2_ros.Time() # need 0 to get latest
+                'odom',
+                detections.header.frame_id,
+                tf2_ros.Time(),  # need 0 to get latest
             )
-        except tf2_ros.LookupException as e: # type: ignore
+        except tf2_ros.LookupException as e:  # type: ignore
             # TF not available yet
             self.get_logger().warn(f'TF not available yet: {e}')
             return
@@ -50,28 +57,22 @@ class ExtrapolateTracker(Node):
             self.boxes.append(
                 Detection3D(
                     bbox=BoundingBox3D(
-                        center=tf2_geometry_msgs.do_transform_pose(
-                            detection.bbox.center,
-                            tf
-                        ),
-                        size=detection.bbox.size
+                        center=tf2_geometry_msgs.do_transform_pose(detection.bbox.center, tf),
+                        size=detection.bbox.size,
                     ),
-                    id=str(self.id_index), # have to unique so bounding boxes don't overwrite one another
-                    header=Header(frame_id='odom', stamp=now_msg)
+                    id=str(
+                        self.id_index
+                    ),  # have to unique so bounding boxes don't overwrite one another
+                    header=Header(frame_id='odom', stamp=now_msg),
                 )
             )
             self.id_index += 1
             self.id_index &= 0x7FFFFFFF
 
         self.box_pub.publish(
-            Detection3DArray(
-                header=Header(
-                    frame_id='odom',
-                    stamp=now_msg
-                ),
-                detections=self.boxes
-            )
+            Detection3DArray(header=Header(frame_id='odom', stamp=now_msg), detections=self.boxes)
         )
+
 
 def main(args=None):
     rclpy.init()

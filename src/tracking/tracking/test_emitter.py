@@ -1,9 +1,9 @@
 import numpy as np
 import rclpy
-import rclpy.time
 from rclpy.node import Node
+import rclpy.time
 import tf2_ros
-from vision_msgs.msg import Detection3DArray, Detection3D, ObjectHypothesisWithPose
+from vision_msgs.msg import Detection3D, Detection3DArray, ObjectHypothesisWithPose
 
 # width (m) over which to distribute detections, centered on Y=0
 DIST_WIDTH = 1.0
@@ -18,8 +18,8 @@ WEED_FREQ = 1.0
 # max num weeds spawned on every spawn interval
 WEED_SPAWN_COUNT = 3
 
-class BoxPublisher(Node):
 
+class BoxPublisher(Node):
     def __init__(self, rand_seed: int | None = None):
         super().__init__('box_publisher')
 
@@ -42,19 +42,27 @@ class BoxPublisher(Node):
         now = self.get_clock().now()
         now_msg = now.to_msg()
 
-        self.boxes = [box for box in self.boxes
-            if (now - rclpy.time.Time.from_msg(box.header.stamp)).nanoseconds / 1e9 < DETECTION_LIFETIME]
+        self.boxes = [
+            box
+            for box in self.boxes
+            if (now - rclpy.time.Time.from_msg(box.header.stamp)).nanoseconds / 1e9
+            < DETECTION_LIFETIME
+        ]
 
-        if self.prev_new_elem_time is None or (now - self.prev_new_elem_time).nanoseconds / 1e9 > (1/WEED_FREQ):
+        if self.prev_new_elem_time is None or (now - self.prev_new_elem_time).nanoseconds / 1e9 > (
+            1 / WEED_FREQ
+        ):
             self.prev_new_elem_time = now
 
             # Look up the robot's current position in odom
             try:
                 tf = self.tf_buffer.lookup_transform(
-                    'odom', 'sprayer_base', tf2_ros.Time() # need 0 to get latest
+                    'odom',
+                    'sprayer_base',
+                    tf2_ros.Time(),  # need 0 to get latest
                 )
                 robot_x = tf.transform.translation.x
-            except tf2_ros.LookupException as e: # type: ignore
+            except tf2_ros.LookupException as e:  # type: ignore
                 # TF not available yet
                 self.get_logger().warn(f'TF not available yet: {e}')
                 return
@@ -62,20 +70,20 @@ class BoxPublisher(Node):
             detection_x_values = self.random.normal(
                 loc=robot_x + DIST_DEPTH,
                 scale=0.05,
-                size=self.random.integers(0, WEED_SPAWN_COUNT)
+                size=self.random.integers(0, WEED_SPAWN_COUNT),
             )
-            detection_y_values = (self.random.random(
-                size=detection_x_values.shape
-            ) - 0.5) * DIST_WIDTH
+            detection_y_values = (
+                self.random.random(size=detection_x_values.shape) - 0.5
+            ) * DIST_WIDTH
             detection_shapes = self.random.normal(
-                loc=0.05,
-                scale=0.01,
-                size=(detection_x_values.shape[0], 3)
+                loc=0.05, scale=0.01, size=(detection_x_values.shape[0], 3)
             ).clip(0.01, 0.1)
 
             new_detections: list[Detection3D] = []
 
-            for x, y, (length, width, height) in zip(detection_x_values, detection_y_values, detection_shapes):
+            for x, y, (length, width, height) in zip(
+                detection_x_values, detection_y_values, detection_shapes, strict=True
+            ):
                 detection = Detection3D()
                 detection.header.frame_id = 'odom'
                 detection.header.stamp = now_msg
@@ -95,6 +103,7 @@ class BoxPublisher(Node):
         boxes_msg.header.stamp = now_msg
         boxes_msg.detections = self.boxes
         self.box_pub.publish(boxes_msg)
+
 
 def main(args=None):
     import os

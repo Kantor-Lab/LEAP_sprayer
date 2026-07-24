@@ -2,15 +2,25 @@ from typing import cast
 
 import cv_bridge
 import image_geometry
+import message_filters
 import numpy as np
 import rclpy
 from rclpy.node import Node
-import message_filters
 from sensor_msgs.msg import CameraInfo, Image
-from vision_msgs.msg import BoundingBox2D, BoundingBox3D, Detection2D, Detection2DArray, Detection3D, Detection3DArray
+from vision_msgs.msg import (
+    BoundingBox2D,
+    BoundingBox3D,
+    Detection2D,
+    Detection2DArray,
+    Detection3D,
+    Detection3DArray,
+)
+
 
 # returns a set of grid points distributed across a bounding box, in (x, y) ordering
-def bbox_grid_points(bbox: BoundingBox2D, nx=5, ny=5) -> np.ndarray[tuple[int, int], np.dtype[np.floating]]:
+def bbox_grid_points(
+    bbox: BoundingBox2D, nx=5, ny=5
+) -> np.ndarray[tuple[int, int], np.dtype[np.floating]]:
     cx = bbox.center.position.x
     cy = bbox.center.position.y
     theta = bbox.center.theta
@@ -22,22 +32,25 @@ def bbox_grid_points(bbox: BoundingBox2D, nx=5, ny=5) -> np.ndarray[tuple[int, i
 
     # rotate then translate
     c, s = np.cos(theta), np.sin(theta)
-    R = np.array([[c, -s],
-                  [s,  c]])
+    R = np.array([[c, -s], [s, c]])
 
     return local @ R.T + [cx, cy]  # (N, 2)
+
 
 class BasicProjectionNode(Node):
     def __init__(self):
         super().__init__('basic_projection')
 
-        self.detections2D_sub_ = message_filters.Subscriber(self, Detection2DArray, '/detections2D')
+        self.detections2D_sub_ = message_filters.Subscriber(
+            self, Detection2DArray, '/detections2D'
+        )
         self.depth_sub_ = message_filters.Subscriber(self, Image, '/camera/depth/image')
         self.caminfo_sub_ = message_filters.Subscriber(self, CameraInfo, '/camera/cam_info')
 
         # time stamps on detections are modified to exactly match images
         self.time_synced = message_filters.TimeSynchronizer(
-            [self.detections2D_sub_, self.depth_sub_, self.caminfo_sub_], queue_size=10)
+            [self.detections2D_sub_, self.depth_sub_, self.caminfo_sub_], queue_size=10
+        )
 
         self.time_synced.registerCallback(self.data_callback)
 
@@ -49,7 +62,7 @@ class BasicProjectionNode(Node):
         self,
         detections2D_msg: Detection2DArray,
         depth_msg: Image,
-        depth_caminfo_msg: CameraInfo
+        depth_caminfo_msg: CameraInfo,
     ) -> None:
         camera_model = image_geometry.PinholeCameraModel()
         camera_model.fromCameraInfo(depth_caminfo_msg)
@@ -61,9 +74,11 @@ class BasicProjectionNode(Node):
             detection2D = cast(Detection2D, detection2D)
             # convert to integers to be able to access the depth image
             points_to_analyze = bbox_grid_points(detection2D.bbox).astype(np.uint32)
-            np.clip(points_to_analyze,
-                [np.uint32(0), np.uint32(0)], [np.uint32(depth_mm.shape[1] - 1), np.uint32(depth_mm.shape[0] - 1)],
-                out=points_to_analyze
+            np.clip(
+                points_to_analyze,
+                [np.uint32(0), np.uint32(0)],
+                [np.uint32(depth_mm.shape[1] - 1), np.uint32(depth_mm.shape[0] - 1)],
+                out=points_to_analyze,
             )
 
             assert len(points_to_analyze.shape) == 2 and points_to_analyze.shape[1] == 2
@@ -77,13 +92,18 @@ class BasicProjectionNode(Node):
 
             # extract the depth measurements we care about and convert them to meters
             # points_to_analyze is (x, y), so we need to reverse the accesses
-            relevant_depth_measurements = depth_mm[points_to_analyze[:, 1], points_to_analyze[:, 0]].astype(np.float32) / 1000.0
+            relevant_depth_measurements = (
+                depth_mm[points_to_analyze[:, 1], points_to_analyze[:, 0]].astype(np.float32)
+                / 1000.0
+            )
             has_valid_depth = relevant_depth_measurements != 0.0
 
-            true_points = true_points_unit_dist[has_valid_depth] * relevant_depth_measurements[has_valid_depth].reshape((-1, 1))
+            true_points = true_points_unit_dist[has_valid_depth] * relevant_depth_measurements[
+                has_valid_depth
+            ].reshape((-1, 1))
 
             # can't take min/max over empty true points
-            if (true_points.shape[0] == 0):
+            if true_points.shape[0] == 0:
                 continue
 
             # gets min/max x,y,z values
@@ -110,6 +130,7 @@ class BasicProjectionNode(Node):
         detections3D_msg.detections = detections3D
 
         self.boxes_pub_.publish(detections3D_msg)
+
 
 def main():
     rclpy.init()

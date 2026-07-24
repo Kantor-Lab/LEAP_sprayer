@@ -2,7 +2,12 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    GroupAction,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+)
 from launch.launch_description_entity import LaunchDescriptionEntity
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -11,15 +16,13 @@ from launch_ros.actions import Node, SetRemap
 from launch_ros.descriptions.composable_node import IfCondition
 from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 
+
 class CameraOutputs:
-    def __init__(self,
-        color_image_topic: str,
-        depth_image_topic: str,
-        info_topic: str
-    ):
+    def __init__(self, color_image_topic: str, depth_image_topic: str, info_topic: str):
         self.color_image_topic = color_image_topic
         self.depth_image_topic = depth_image_topic
         self.info_topic = info_topic
+
 
 def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
 
@@ -30,13 +33,13 @@ def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
             camera_nodes.append(
                 GroupAction(
                     actions=[
-                        SetRemap(src="/image_raw", dst="/camera/color/image"),
-                        SetRemap(src="/depth_raw", dst="/camera/depth/image"),
-                        SetRemap(src="/cam_info", dst="/camera/cam_info"),
+                        SetRemap(src='/image_raw', dst='/camera/color/image'),
+                        SetRemap(src='/depth_raw', dst='/camera/depth/image'),
+                        SetRemap(src='/cam_info', dst='/camera/cam_info'),
                         Node(
-                            package="camera",
-                            executable="debug_camera",
-                            name="debug_camera",
+                            package='camera',
+                            executable='debug_camera',
+                            name='debug_camera',
                         ),
                     ]
                 )
@@ -48,30 +51,31 @@ def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
 
             config_file = os.path.join(
                 get_package_share_directory('bringup'),
-                'config', 'realsense_config.yaml'
+                'config',
+                'realsense_config.yaml',
             )
 
             camera_nodes.append(
                 GroupAction(
                     actions=[
                         SetRemap(
-                            src="/camera/D435/color/image_raw",
-                            dst="/camera/color/image",
+                            src='/camera/D435/color/image_raw',
+                            dst='/camera/color/image',
                         ),
                         SetRemap(
-                            src="/camera/D435/aligned_depth_to_color/image_raw",
-                            dst="/camera/depth/image",
+                            src='/camera/D435/aligned_depth_to_color/image_raw',
+                            dst='/camera/depth/image',
                         ),
                         SetRemap(
-                            src="/camera/D435/aligned_depth_to_color/camera_info",
-                            dst="/camera/cam_info",
+                            src='/camera/D435/aligned_depth_to_color/camera_info',
+                            dst='/camera/cam_info',
                         ),
                         IncludeLaunchDescription(
                             PythonLaunchDescriptionSource(realsense_launch_file),
                             launch_arguments={
-                                "camera_namespace": "camera",
-                                "camera_name": "D435",
-                                "config_file": config_file
+                                'camera_namespace': 'camera',
+                                'camera_name': 'D435',
+                                'config_file': config_file,
                             }.items(),
                         ),
                     ]
@@ -82,6 +86,7 @@ def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
             raise ValueError(f'Invalid camera choice: {camera_choice}')
 
     return camera_nodes
+
 
 def select_detector(detector_choice: str) -> list[LaunchDescriptionEntity]:
     detector_nodes: list[LaunchDescriptionEntity] = []
@@ -98,8 +103,9 @@ def select_detector(detector_choice: str) -> list[LaunchDescriptionEntity]:
             )
         case _:
             raise ValueError(f'Invalid detector choice: {detector_choice}')
-    
+
     return detector_nodes
+
 
 def select_projector(projector_choice: str) -> list[LaunchDescriptionEntity]:
     projector_nodes: list[LaunchDescriptionEntity] = []
@@ -116,8 +122,9 @@ def select_projector(projector_choice: str) -> list[LaunchDescriptionEntity]:
             )
         case _:
             raise ValueError(f'Invalid projector choice: {projector_choice}')
-    
+
     return projector_nodes
+
 
 def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
     tracker_nodes: list[LaunchDescriptionEntity] = []
@@ -143,10 +150,13 @@ def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
             )
         case _:
             raise ValueError(f'Invalid tracker choice: {tracker_choice}')
-    
+
     return tracker_nodes
 
-def select_nozzle_dispatcher(nozzle_dispatcher_choice: str) -> list[LaunchDescriptionEntity]:
+
+def select_nozzle_dispatcher(
+    nozzle_dispatcher_choice: str,
+) -> list[LaunchDescriptionEntity]:
     nozzle_dispatcher_nodes: list[LaunchDescriptionEntity] = []
 
     match nozzle_dispatcher_choice:
@@ -170,11 +180,13 @@ def select_nozzle_dispatcher(nozzle_dispatcher_choice: str) -> list[LaunchDescri
             )
         case _:
             raise ValueError(f'Invalid nozzle dispatcher choice: {nozzle_dispatcher_choice}')
-    
+
     return nozzle_dispatcher_nodes
 
 
-def select_nozzle_controller(nozzle_controller_choice: str) -> list[LaunchDescriptionEntity]:
+def select_nozzle_controller(
+    nozzle_controller_choice: str,
+) -> list[LaunchDescriptionEntity]:
     nozzle_controller_nodes: list[LaunchDescriptionEntity] = []
 
     match nozzle_controller_choice:
@@ -198,8 +210,9 @@ def select_nozzle_controller(nozzle_controller_choice: str) -> list[LaunchDescri
             )
         case _:
             raise ValueError(f'Invalid nozzle controller choice: {nozzle_controller_choice}')
-    
+
     return nozzle_controller_nodes
+
 
 def evaluate_args(context: LaunchContext, *args, **kwargs) -> list[LaunchDescriptionEntity]:
     camera_choice = LaunchConfiguration('camera').perform(context)
@@ -216,89 +229,94 @@ def evaluate_args(context: LaunchContext, *args, **kwargs) -> list[LaunchDescrip
     nozzle_dispatcher_nodes = select_nozzle_dispatcher(nozzle_dispatcher_choice)
     nozzle_controller_nodes = select_nozzle_controller(nozzle_controller_choice)
 
-    return camera_nodes + detector_nodes + projector_nodes + tracker_nodes + nozzle_dispatcher_nodes + nozzle_controller_nodes
+    return (
+        camera_nodes
+        + detector_nodes
+        + projector_nodes
+        + tracker_nodes
+        + nozzle_dispatcher_nodes
+        + nozzle_controller_nodes
+    )
+
 
 def generate_launch_description() -> LaunchDescription:
     launch_rqt = LaunchConfiguration('image_viewer')
     launch_foxglove = LaunchConfiguration('foxglove')
     debug_odom = LaunchConfiguration('debug_odom')
 
-    return LaunchDescription([
-        DeclareLaunchArgument('image_viewer', default_value='false'),
-        DeclareLaunchArgument('foxglove', default_value='false'),
-        DeclareLaunchArgument('debug_odom', default_value='true'),
-        DeclareLaunchArgument('camera', default_value='debug'),
-        DeclareLaunchArgument('detector', default_value='owl'),
-        DeclareLaunchArgument('projector', default_value='basic'),
-        DeclareLaunchArgument('tracker', default_value='debug'),
-        DeclareLaunchArgument('nozzle_dispatcher', default_value='hardcoded'),
-        DeclareLaunchArgument('nozzle_controller', default_value='debug'),
-
-        Node(
-            package='rqt_image_view',
-            executable='rqt_image_view',
-            name='rqt_image_view',
-            condition=IfCondition(launch_rqt)
-        ),
-        GroupAction(actions=[
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument('image_viewer', default_value='false'),
+            DeclareLaunchArgument('foxglove', default_value='false'),
+            DeclareLaunchArgument('debug_odom', default_value='true'),
+            DeclareLaunchArgument('camera', default_value='debug'),
+            DeclareLaunchArgument('detector', default_value='owl'),
+            DeclareLaunchArgument('projector', default_value='basic'),
+            DeclareLaunchArgument('tracker', default_value='debug'),
+            DeclareLaunchArgument('nozzle_dispatcher', default_value='hardcoded'),
+            DeclareLaunchArgument('nozzle_controller', default_value='debug'),
+            Node(
+                package='rqt_image_view',
+                executable='rqt_image_view',
+                name='rqt_image_view',
+                condition=IfCondition(launch_rqt),
+            ),
+            GroupAction(
+                actions=[
+                    IncludeLaunchDescription(
+                        XMLLaunchDescriptionSource(
+                            os.path.join(
+                                get_package_share_directory('foxglove_bridge'),
+                                'launch',
+                                'foxglove_bridge_launch.xml',
+                            )
+                        )
+                    ),
+                    Node(
+                        package='foxglove_compat',
+                        executable='detections2D_visualizer',
+                        name='detections2D_visualizer',
+                    ),
+                    # raw detections visualizer
+                    Node(
+                        package='foxglove_compat',
+                        executable='detections3D_visualizer',
+                        name='detections3D_raw_visualizer',
+                        remappings={
+                            '/detections3D': '/detections3D_raw',
+                            '/detections3D_vis': '/detections3D_raw_vis',
+                        }.items(),
+                    ),
+                    # tracked detections visualizer
+                    Node(
+                        package='foxglove_compat',
+                        executable='detections3D_visualizer',
+                        name='detections3D_visualizer',
+                        remappings={
+                            '/detections3D': '/detections3D',
+                            '/detections3D_vis': '/detections3D_vis',
+                        }.items(),
+                    ),
+                ],
+                condition=IfCondition(launch_foxglove),
+            ),
+            # Publish URDF joint states
             IncludeLaunchDescription(
-                XMLLaunchDescriptionSource(
+                PythonLaunchDescriptionSource(
                     os.path.join(
-                        get_package_share_directory('foxglove_bridge'),
+                        get_package_share_directory('sprayer_description'),
                         'launch',
-                        'foxglove_bridge_launch.xml'
+                        'sprayer_description.launch.py',
                     )
-                )
+                ),
+                launch_arguments={'zenoh': 'false', 'rviz': 'false'}.items(),
             ),
             Node(
-                package='foxglove_compat',
-                executable='detections2D_visualizer',
-                name='detections2D_visualizer'
+                package='tracking',
+                executable='constant_velocity_odom',
+                name='constant_velocity_odom',
+                condition=IfCondition(debug_odom),
             ),
-            # raw detections visualizer
-            Node(
-                package='foxglove_compat',
-                executable='detections3D_visualizer',
-                name='detections3D_raw_visualizer',
-                remappings={
-                    '/detections3D' : '/detections3D_raw',
-                    '/detections3D_vis' : '/detections3D_raw_vis'
-                }.items()
-            ),
-            # tracked detections visualizer
-            Node(
-                package='foxglove_compat',
-                executable='detections3D_visualizer',
-                name='detections3D_visualizer',
-                remappings={
-                    '/detections3D' : '/detections3D',
-                    '/detections3D_vis' : '/detections3D_vis'
-                }.items()
-            ),
-        ],
-        condition=IfCondition(launch_foxglove)),
-
-        # Publish URDF joint states
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('sprayer_description'),
-                    'launch',
-                    'sprayer_description.launch.py'
-                )
-            ),
-            launch_arguments={
-                'zenoh': 'false',
-                'rviz': 'false'
-            }.items()
-        ),
-
-        Node(
-            package='tracking',
-            executable='constant_velocity_odom',
-            name='constant_velocity_odom',
-            condition=IfCondition(debug_odom)
-        ),
-
-        OpaqueFunction(function=evaluate_args)
-    ])
+            OpaqueFunction(function=evaluate_args),
+        ]
+    )

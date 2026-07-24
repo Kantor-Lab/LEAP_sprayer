@@ -5,14 +5,15 @@ Republishes the bounding box detections as ImageMarker messages to /detections2D
 
 from typing import cast
 
+from foxglove_msgs.msg import ImageMarkerArray
 from geometry_msgs.msg import Point
 import numpy as np
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import ColorRGBA
 from vision_msgs.msg import BoundingBox2D, Detection2D, Detection2DArray
-from foxglove_msgs.msg import ImageMarkerArray
 from visualization_msgs.msg import ImageMarker
+
 
 def bbox_to_corner_points(bbox: BoundingBox2D) -> list[Point]:
     cx = bbox.center.position.x
@@ -25,25 +26,26 @@ def bbox_to_corner_points(bbox: BoundingBox2D) -> list[Point]:
         (cx - half_w, cy - half_h),
         (cx + half_w, cy - half_h),
         (cx + half_w, cy + half_h),
-        (cx - half_w, cy + half_h)
+        (cx - half_w, cy + half_h),
     ]
 
     cos_t = np.cos(theta)
     sin_t = np.sin(theta)
 
     corners_rotated = [
-        (cos_t * x - sin_t * y, sin_t * x + cos_t * y)
-        for x, y in corners_unrotated
+        (cos_t * x - sin_t * y, sin_t * x + cos_t * y) for x, y in corners_unrotated
     ]
 
     return [Point(x=float(x), y=float(y)) for x, y in corners_rotated]
+
 
 class Detection2DVisualizerNode(Node):
     def __init__(self):
         super().__init__('detections2D_visualizer')
 
         self.detections2D_sub_ = self.create_subscription(
-            Detection2DArray, '/detections2D', self.detections_callback, qos_profile=1)
+            Detection2DArray, '/detections2D', self.detections_callback, qos_profile=1
+        )
 
         self.markers_pub_ = self.create_publisher(ImageMarkerArray, '/detections2D_vis', 10)
 
@@ -53,7 +55,7 @@ class Detection2DVisualizerNode(Node):
 
     def detections_callback(self, msg: Detection2DArray) -> None:
         image_markers: list[ImageMarker] = []
-        
+
         for detection in msg.detections:
             detection = cast(Detection2D, detection)
             image_marker = ImageMarker()
@@ -73,8 +75,9 @@ class Detection2DVisualizerNode(Node):
 
         image_marker_array = ImageMarkerArray()
         image_marker_array.markers = image_markers
-        
+
         self.markers_pub_.publish(image_marker_array)
+
 
 def main():
     rclpy.init()
