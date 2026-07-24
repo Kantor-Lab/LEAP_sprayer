@@ -9,10 +9,7 @@ from .serialcontroller import validate_cmd
 def find_max_boom_index() -> int:
     for i in range(10):
         cmd = f"NSC{i}{0}\n"
-        try:
-            if not validate_cmd(cmd):
-                return i - 1
-        except Exception:
+        if not validate_cmd(cmd):
             return i - 1
     return 9
 
@@ -53,39 +50,36 @@ class SpraySerialController(Node):
         ) for index in range(find_max_boom_index() + 1)]
 
     def listener_callback(self, msg: String):
-        is_valid = False
-        try:
-            is_valid = validate_cmd(msg.data)
-        except Exception as e:
-            self.get_logger().error(f"Failed to validate command: {msg.data}\n\t{e}")
+        is_valid = validate_cmd(msg.data)
+
+        if not is_valid:
+            self.get_logger().error(f"Invalid command: {msg.data}")
             return
 
-        if is_valid:
-            try:
-                if msg.data[1] == 'X':
-                    self.nozzles[:] = ['◯'] * len(self.nozzles)
-                else:
-                    if msg.data[4] == '0':
-                        self.nozzles[int(msg.data[int(3)])] = '◯'
-                        self.markers[int(msg.data[int(3)])].action = Marker.DELETE
-                    elif msg.data[4] == '1':
-                        self.nozzles[int(msg.data[int(3)])] = '⬤'
-                        self.markers[int(msg.data[int(3)])].action = Marker.ADD
-                        
-                    else:
-                        raise ValueError(f"Invalid nozzle state: {msg.data[4]}")
+        try:
+            if msg.data[1] == 'X':
+                self.nozzles[:] = ['◯'] * len(self.nozzles)
+            else:
+                if msg.data[4] == '0':
+                    self.nozzles[int(msg.data[int(3)])] = '◯'
+                    self.markers[int(msg.data[int(3)])].action = Marker.DELETE
 
-                self.get_logger().info(f"Sprayer state (cmd: {msg.data}): {' '.join(self.nozzles)}")
-                now_msg = self.get_clock().now().to_msg()
-                for i in range(len(self.markers)):
-                    self.markers[i].header.stamp = now_msg
-                self.markers_pub.publish(MarkerArray(
-                    markers=self.markers
-                ))
-            except IndexError | ValueError:
-                self.get_logger().error(f"Failed to update nozzle state: {msg.data}")
-        else:
-            self.get_logger().error(f"Invalid command: {msg.data}")
+                elif msg.data[4] == '1':
+                    self.nozzles[int(msg.data[int(3)])] = '⬤'
+                    self.markers[int(msg.data[int(3)])].action = Marker.ADD
+
+                else:
+                    raise ValueError(f"Invalid nozzle state: {msg.data[4]}")
+
+            self.get_logger().info(f"Sprayer state (cmd: {msg.data}): {' '.join(self.nozzles)}")
+            now_msg = self.get_clock().now().to_msg()
+            for i in range(len(self.markers)):
+                self.markers[i].header.stamp = now_msg
+            self.markers_pub.publish(MarkerArray(
+                markers=self.markers
+            ))
+        except IndexError | ValueError:
+            self.get_logger().error(f"Failed to update nozzle state: {msg.data}")
 
 def main():
     rclpy.init(args=None)

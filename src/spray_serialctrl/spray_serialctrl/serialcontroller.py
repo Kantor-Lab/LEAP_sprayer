@@ -9,6 +9,12 @@ from std_msgs.msg import String
 import time
 
 def validate_cmd(cmd: str) -> bool:
+    """
+    Validates the given command, assuming there are 4 nozzles total on the center boom of the sprayer
+
+    May throw a NotImplementedException if asked to work with a command we haven't fully defined.
+    This should not be caught, because this is a serious programmer logic error.
+    """
     # super important to newline terminate for serial controller
     if len(cmd) > 0 and cmd[-1] != '\n':
         return False
@@ -111,12 +117,7 @@ class SpraySerialController(Node):
             print("Arduino message -- No ACK received. Timed out.")
 
     def listener_callback(self, msg: String):
-        is_valid = False
-        try:
-            is_valid = validate_cmd(msg.data)
-        except Exception as e:
-            self.get_logger().error(f"Failed to validate command: {msg.data}\n\t{e}")
-            return
+        is_valid = validate_cmd(msg.data)
 
         if is_valid:
             self.send_serialcmd(msg.data)
