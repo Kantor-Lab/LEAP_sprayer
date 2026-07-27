@@ -231,6 +231,12 @@ def get_nozzle_box_intersections(
     """
 
     assert boxes_nozzles.shape[1] == 6
+
+    # have to special case on whether there are no intersections (no pairs of boxes)
+    # otherwise sliding_window_view will fail
+    if boxes_nozzles.shape[0] < 2:
+        return boxes_nozzles, np.empty((0, 6))
+    
     # pair up adjacent boxes into windows into the two of them
     boxes_adjacent = np.lib.stride_tricks.sliding_window_view(boxes_nozzles, window_shape=(2, 6))
     boxes_adjacent = boxes_adjacent.squeeze(
@@ -347,9 +353,13 @@ class NozzleCommandDispatcher(Node):
             for pose, transform in zip(centers_local, nozzle_to_baselink_transforms, strict=True)
         ]
 
-        centers_base_np = np.array(
+        # reshape basically a no-op in all cases, but accounts for possibility of 0 items
+        # that may occur during a racey start where the TF tree is not available yet
+        # which would otherwise result in a 1-dimensional array (0,),
+        # and fail to hstack
+        centers_base_np = np.reshape(np.array(
             [[p.position.x, p.position.y, p.position.z] for p in centers_base]
-        )
+        ), (-1, 3))
 
         return np.hstack((centers_base_np, box_sizes))
 
