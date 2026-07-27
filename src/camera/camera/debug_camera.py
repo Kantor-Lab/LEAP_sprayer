@@ -82,10 +82,16 @@ class DebugCameraNode(Node):
                 width=ros_image_msg.width,
                 distortion_model='plumb_bob',
                 d=[0.0, 0.0, 0.0, 0.0, 0.0],
-                k=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-                r=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-                p=[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-            )
+                k=[1.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0,
+                   0.0, 0.0, 1.0],
+                r=[1.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0,
+                   0.0, 0.0, 1.0],
+                p=[1.0, 0.0, 0.0, 0.0,
+                   0.0, 1.0, 0.0, 0.0,
+                   0.0, 0.0, 1.0, 0.0],
+            )  # fmt: skip
             identity_caminfo_msg.header.stamp = timestamp
             self.cam_info_publisher_.publish(identity_caminfo_msg)
 

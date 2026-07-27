@@ -32,7 +32,10 @@ def bbox_grid_points(
 
     # rotate then translate
     c, s = np.cos(theta), np.sin(theta)
-    R = np.array([[c, -s], [s, c]])
+    # fmt: off
+    R = np.array([[c, -s],
+                  [s,  c],
+    ])
 
     return local @ R.T + [cx, cy]  # (N, 2)
 
