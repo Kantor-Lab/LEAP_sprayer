@@ -6,6 +6,9 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 from .serialcontroller import validate_cmd
 
+# unsure of units, but changes the size of the indicator spheres
+FULL_ON_NOZZLE_INDICATOR_SCALE = 0.1
+
 
 def find_max_boom_index() -> int:
     for i in range(10):
@@ -32,7 +35,11 @@ class SpraySerialController(Node):
                 type=Marker.SPHERE,
                 action=Marker.DELETE,
                 color=ColorRGBA(r=1.0, a=1.0),
-                scale=Vector3(x=0.1, y=0.1, z=0.1),
+                scale=Vector3(
+                    x=FULL_ON_NOZZLE_INDICATOR_SCALE,
+                    y=FULL_ON_NOZZLE_INDICATOR_SCALE,
+                    z=FULL_ON_NOZZLE_INDICATOR_SCALE,
+                ),
             )
             for index in range(find_max_boom_index() + 1)
         ]
@@ -48,16 +55,43 @@ class SpraySerialController(Node):
             if msg.data[1] == 'X':
                 self.nozzles[:] = ['◯'] * len(self.nozzles)
             else:
-                if msg.data[4] == '0':
+                # backward compat
+                if msg.data[5] == '\n':
+                    if msg.data[4] == '0':
+                        self.get_logger().warn(
+                            f'Probably received older message ({msg.data}),'
+                            'backward compatibility not guaranteed in future'
+                        )
+                        self.nozzles[int(msg.data[3])] = '◯'
+                        self.markers[int(msg.data[3])].action = Marker.DELETE
+                    elif msg.data[4] == '1':
+                        self.get_logger().warn(
+                            f'Probably received older message ({msg.data}),'
+                            'backward compatibility not guaranteed in future'
+                        )
+                        self.nozzles[int(msg.data[3])] = '⬤'
+                        self.markers[int(msg.data[3])].action = Marker.ADD
+                        self.markers[int(msg.data[3])].scale = Vector3(
+                            x=FULL_ON_NOZZLE_INDICATOR_SCALE,
+                            y=FULL_ON_NOZZLE_INDICATOR_SCALE,
+                            z=FULL_ON_NOZZLE_INDICATOR_SCALE,
+                        )
+                    else:
+                        raise ValueError(f'Invalid nozzle state: {msg.data[4]}')
+                elif msg.data[4] == '0' and msg.data[5] == '0':
                     self.nozzles[int(msg.data[3])] = '◯'
                     self.markers[int(msg.data[3])].action = Marker.DELETE
-
-                elif msg.data[4] == '1':
-                    self.nozzles[int(msg.data[3])] = '⬤'
-                    self.markers[int(msg.data[3])].action = Marker.ADD
-
                 else:
-                    raise ValueError(f'Invalid nozzle state: {msg.data[4]}')
+                    rate = int(''.join(msg.data[4:6]))
+                    if 0 < rate <= 50:
+                        indicator_scale = FULL_ON_NOZZLE_INDICATOR_SCALE * rate / 50
+                        self.nozzles[int(msg.data[3])] = '⬤'
+                        self.markers[int(msg.data[3])].action = Marker.ADD
+                        self.markers[int(msg.data[3])].scale = Vector3(
+                            x=indicator_scale, y=indicator_scale, z=indicator_scale
+                        )
+                    else:
+                        raise ValueError(f'Invalid nozzle state: {msg.data[4]}')
 
             self.get_logger().info(f'Sprayer state (cmd: {msg.data}): {" ".join(self.nozzles)}')
             now_msg = self.get_clock().now().to_msg()

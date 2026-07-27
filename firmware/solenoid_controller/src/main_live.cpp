@@ -40,6 +40,23 @@ void loop() {
     if (command == 'N' && nozzletype == 'X') {
       poweroff_seq();
     } else if (command == 'N') {
+      // forward compatibility with newer multi-byte rates.
+      // doesn't have to be strictest possible, since we can assume the sender
+      // is validating anyway
+      if (bytesRead > 5) {
+          Serial.print("May have received newer unsupported command state format, treating as ");
+          if (state == 0) {
+            if (buffer[5] != '0') {
+                state = 1; // anything not 00 becomes 1
+            }
+          } else {
+            if (buffer[4] < '5' || (buffer[4] == '5' && buffer[5] == '0')) {
+                state = 1;
+            }
+          }
+          Serial.println(state);
+      }
+        
       if (state == 1) {
         mcp.digitalWrite(nozzle, HIGH);
       } else if (state == 0) {
@@ -56,4 +73,3 @@ void loop() {
     }
   }
 }
-
