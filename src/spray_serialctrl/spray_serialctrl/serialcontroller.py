@@ -33,8 +33,16 @@ def validate_cmd(cmd: str) -> bool:
                                 if not 0 <= nozzle_num <= 3:
                                     return False
 
-                                nozzle_state = int(cmd[4])
-                                return 0 <= nozzle_state <= 1
+                                if cmd[5] == '\n':  # backward compatibility with older format
+                                    nozzle_state = int(cmd[4])
+                                    return 0 <= nozzle_state <= 1
+
+                                else:
+                                    if cmd[6] != '\n':
+                                        return False
+
+                                    nozzle_state = int(''.join(cmd[4:6]))
+                                    return 0 <= nozzle_state <= 50
                             case 'L':
                                 raise NotImplementedError('Left boom not yet supported')
                             case 'R':

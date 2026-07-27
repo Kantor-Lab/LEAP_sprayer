@@ -131,17 +131,16 @@ It is documented below.
         </tr>
         <tr>
             <td rowspan="2">C</td>
-            <td>&lt;id&gt; 0&ndash;3</td>
-            <td>0</td>
+            <td rowspan="2">&lt;id&gt; 0&ndash;3</td>
+            <td>00</td>
             <td colspan="2">
-                Center spot boom nozzle &lt;id&gt; off
+                Center spot boom nozzle &lt;id&gt; off.
             </td>
         </tr>
         <tr>
-            <td>&lt;id&gt; 0&ndash;3</td>
-            <td>1</td>
+            <td>&lt;rate&gt; 01&ndash;50</td>
             <td colspan="2">
-                Center spot boom nozzle &lt;id&gt; on
+                Center spot boom nozzle &lt;id&gt; on at PWM percentage &lt;rate&gt;/50.
             </td>
         </tr>
         <tr>
