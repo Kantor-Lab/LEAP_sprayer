@@ -81,11 +81,12 @@ no-default-feature = true
 default-environment = "firmware"
 args = [
     { arg = "controller", "default" = "test_led" },
-    { arg = "do_upload", "default" = "no_upload", "choices" = ["no_upload", "upload"] }
+    { arg = "do_upload", "default" = "no_upload", "choices" = ["no_upload", "upload"] },
+    { arg = "board", "default" = "uno", "choices" = ["uno", "nano"] }
 ]
 cmd = """
     cd firmware/solenoid_controller/ && \
-    platformio run -e {{ controller }} {% if do_upload == 'upload' %}--target upload{% endif %}
+    platformio run -e {{ board + '_' + controller }} {% if do_upload == 'upload' %}--target upload{% endif %}
     """
 
 [feature.check.dependencies]

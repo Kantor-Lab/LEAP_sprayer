@@ -69,6 +69,8 @@ def discover_arduino(baudrate: int = 115200) -> serial.Serial | None:
         0x1A86,  # CH340 Clone
         0x10C4,  # CP210x Clone
         0x0403,  # FTDI Clone
+        0x2A03,  # potential alternative nano
+        0x067B,  # prolific chip (potential nano clone)
     }
 
     candidate_ports = [port for port in available_ports if port.vid in ARDUINO_VIDS]

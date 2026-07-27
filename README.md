@@ -111,7 +111,7 @@ will give you full access to the tool in your shell.
 
 To build firmware without going through this, run
 ```bash
-pixi run build-firmware [controller] [upload|no_upload]
+pixi run build-firmware [controller] [upload|no_upload] [uno|nano]
 ```
 
 There are currently two controllers implemented
