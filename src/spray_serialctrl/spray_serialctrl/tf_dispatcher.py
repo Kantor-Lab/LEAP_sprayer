@@ -231,6 +231,12 @@ def get_nozzle_box_intersections(
     """
 
     assert boxes_nozzles.shape[1] == 6
+
+    # have to special case on whether there are no intersections (no pairs of boxes)
+    # otherwise sliding_window_view will fail
+    if boxes_nozzles.shape[0] < 2:
+        return boxes_nozzles, np.empty((0, 6))
+    
     # pair up adjacent boxes into windows into the two of them
     boxes_adjacent = np.lib.stride_tricks.sliding_window_view(boxes_nozzles, window_shape=(2, 6))
     boxes_adjacent = boxes_adjacent.squeeze(
