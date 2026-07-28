@@ -29,10 +29,7 @@ from vision_msgs.msg import (
 )
 import yaml
 
-NOZZLE_ANGLE = 40  # degrees
-
-BUFFER = 0.050  # meters
-NOZZLE_BOX_DEPTH = 0.01  # meters
+from .util import compute_sprayer_footprint, SPOT_SPRAYER_INFO
 
 
 def bbox_to_line(bbox: BoundingBox3D, color: Color) -> LinePrimitive:
@@ -309,12 +306,12 @@ class NozzleCommandDispatcher(Node):
 
         # divide nozzle angle by 2 for half angle, compute the opposite side length (the ground),
         # then double to get the full box width
-        box_widths: np.ndarray[float, np.dtype[np.float64]] = (
-            nozzle_heights * np.tan(np.deg2rad(NOZZLE_ANGLE / 2)) * 2
+        box_widths: np.ndarray[float, np.dtype[np.float64]] = compute_sprayer_footprint(
+            SPOT_SPRAYER_INFO.nozzle_angle, nozzle_heights
         )
         # nozzles are oriented in URDF/TF tree as y is along boom, x is forward, z is down
         box_sizes = np.empty((len(nozzle_heights), 3))
-        box_sizes[:, 0] = NOZZLE_BOX_DEPTH
+        box_sizes[:, 0] = SPOT_SPRAYER_INFO.nozzle_box_depth
         box_sizes[:, 1] = box_widths
         box_sizes[:, 2] = nozzle_heights
 
