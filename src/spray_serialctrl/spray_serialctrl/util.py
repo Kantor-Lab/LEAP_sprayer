@@ -1,4 +1,4 @@
-from typing import overload
+from typing import cast, overload
 
 import numpy as np
 
@@ -143,3 +143,132 @@ def compute_sprayer_footprint(
     # divide by two to get half angle and get half base width,
     # then multiply by two to get the full width
     return nozzle_height * np.tan(np.deg2rad(nozzle_angle / 2)) * 2
+
+
+def _compute_exact_duty(
+    target_gpa: float,
+    max_gpm: float,
+    footprint_m: ScalarOrArray,
+    speed_mps: ScalarOrArray,
+) -> ScalarOrArray:
+    """
+    Compute the exact duty cycle required to achieve the target GPA.
+
+    May be greater than 1, indicating this isn't achievable.
+    """
+    # this math thoroughly confused us multiple times, so here is the derivation in full
+    # given target_gpa = (duty * max_gpm) / (footprint * speed) * c,
+    # where is c is some constant to handle the unit conversion
+    # we can solve for duty
+    # duty = (target_gpa * footprint * speed) / (max_gpm * c)
+    # and we can solve for what c has to cancel from that (duty must be unitless)
+    # 1 = ((gallon/acre) * m * (m/s)) / ((gallon/min) * c)
+    #   = (m²/acre) * (min/s) / c
+    #   = SQUARE_METERS_PER_ACRE * 1/60 / c
+    # ⇒ c = SQUARE_METERS_PER_ACRE / 60
+
+    return (target_gpa * footprint_m * speed_mps) / (max_gpm * SQUARE_METERS_PER_ACRE / 60)
+
+
+@overload
+def get_best_duty(
+    nozzle_info: NozzleInfo,
+    height_m: float,
+    speed_mps: float,
+) -> float: ...
+
+
+@overload
+def get_best_duty(
+    nozzle_info: NozzleInfo,
+    height_m: NDArray64,
+    speed_mps: NDArray64,
+) -> NDArray64: ...
+
+
+@overload
+def get_best_duty(
+    nozzle_info: NozzleInfo,
+    height_m: float,
+    speed_mps: NDArray64,
+) -> NDArray64: ...
+
+
+@overload
+def get_best_duty(
+    nozzle_info: NozzleInfo,
+    height_m: NDArray64,
+    speed_mps: float,
+) -> NDArray64: ...
+
+
+def get_best_duty(
+    nozzle_info: NozzleInfo,
+    height_m: ScalarOrArray,
+    speed_mps: ScalarOrArray,
+) -> ScalarOrArray:
+
+    is_scalar = isinstance(height_m, float) and isinstance(speed_mps, float)
+    if not is_scalar:
+        assert isinstance(height_m, float) or np.issubdtype(
+            cast(np.ndarray, height_m).dtype, np.floating
+        ), f'height_m must be a float or numpy float array, was {type(height_m)}'
+        assert isinstance(speed_mps, float) or np.issubdtype(
+            cast(np.ndarray, speed_mps).dtype, np.floating
+        ), f'speed_mps must be a float or numpy float array, was {type(speed_mps)}'
+
+    footprint_m = compute_sprayer_footprint(nozzle_info.nozzle_angle, height_m)
+
+    min_duty = _compute_exact_duty(
+        TARGET_GPA_RANGE[0],
+        nozzle_info.max_flow_rate,
+        footprint_m,
+        speed_mps,
+    )
+
+    max_duty = _compute_exact_duty(
+        TARGET_GPA_RANGE[1],
+        nozzle_info.max_flow_rate,
+        footprint_m,
+        speed_mps,
+    )
+
+    ideal_is_viable = (min_duty <= nozzle_info.ideal_duty_cycle) & (
+        nozzle_info.ideal_duty_cycle <= max_duty
+    )
+
+    if isinstance(ideal_is_viable, np.ndarray) and isinstance(speed_mps, np.ndarray):
+        assert ideal_is_viable.shape == speed_mps.shape, (
+            f'ideal_is_viable shape {ideal_is_viable.shape} does not match'
+            f'speed_mps shape {speed_mps.shape}'
+        )
+
+    if np.all(ideal_is_viable):
+        return (
+            np.full_like(speed_mps, nozzle_info.ideal_duty_cycle)
+            if not is_scalar
+            else nozzle_info.ideal_duty_cycle
+        )
+
+    # normalize to 1D. otherwise not_viable = np.True_, which adds an axis and messes things up
+    min_duty = np.atleast_1d(min_duty)
+    max_duty = np.atleast_1d(max_duty)
+    ideal_is_viable = np.atleast_1d(ideal_is_viable)
+
+    bounds = np.hstack((np.reshape(min_duty, (-1, 1)), np.reshape(max_duty, (-1, 1))))
+    best_bound = np.argmin(
+        np.abs(bounds - nozzle_info.ideal_duty_cycle),
+        axis=-1,  # equivalent to 1 for actual arrays, but -1 handles non-array floats
+    )
+
+    duty_result = np.empty_like(min_duty, dtype=np.float64)
+    duty_result[ideal_is_viable] = nozzle_info.ideal_duty_cycle
+
+    not_viable = np.logical_not(ideal_is_viable)  # need logical not to avoid deprecation warnings
+    duty_result[not_viable] = bounds[not_viable][
+        np.arange(len(bounds[not_viable])), best_bound[not_viable]
+    ]
+
+    duty_result = np.clip(duty_result, nozzle_info.min_duty_cycle, 1.0)
+
+    return duty_result if not is_scalar else float(duty_result.item())
