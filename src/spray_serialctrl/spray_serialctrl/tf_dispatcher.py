@@ -374,7 +374,8 @@ class NozzleCommandDispatcher(Node):
             new_center_nanos = np.full(nozzle_boxes_np.shape[0], time_now, dtype=np.int64)
 
             nozzle_velocities = np.linalg.norm(new_centers - self.nozzle_centers, axis=1) / (
-                new_center_nanos - self.nozzle_center_nanos
+                (new_center_nanos - self.nozzle_center_nanos)
+                / 1_000_000_000.0  # convert to seconds
             )
 
             self.nozzle_centers = new_centers
