@@ -52,11 +52,16 @@ outputs = ["build", "install"]
 # and nodes using the custom service would die with "type_support is null".
 # Sourcing here re-populates DYLD_LIBRARY_PATH in-process; because ros2/python is
 # not SIP-protected the value survives to the launched nodes. Harmless on Linux.
+#
+# The trailing `"$@"' _` forwards any extra args pixi appends (e.g.
+# `pixi run launch nozzle_dispatcher:=tf foxglove:=true`) through to ros2 launch.
+# pixi appends them after the whole command, so they arrive as args to `bash -c`;
+# the `_` is a throwaway $0 so the real launch args line up as $1.. for "$@".
 cmd = """
 {% if not pixi.is_linux %}\
 echo \"WARNING: not all features work on non-Linux platforms\" && \
 {% endif %}\
-bash -c 'source install/setup.sh && ros2 launch bringup launch.py'
+bash -c 'source install/setup.sh && ros2 launch bringup launch.py \"$@\"' _
 """
 depends-on = [{task = "build"}]
 default-environment = "sourced"
