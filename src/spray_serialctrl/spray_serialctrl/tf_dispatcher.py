@@ -29,7 +29,7 @@ from vision_msgs.msg import (
 )
 import yaml
 
-from .util import compute_sprayer_footprint, SPOT_SPRAYER_INFO
+from .util import compute_sprayer_footprint, get_best_duty, SPOT_SPRAYER_INFO
 
 
 def bbox_to_line(bbox: BoundingBox3D, color: Color) -> LinePrimitive:
@@ -275,6 +275,8 @@ class NozzleCommandDispatcher(Node):
         self.command_publisher = self.create_publisher(String, 'spraycommand', 10)
 
         self.fboom_current: list[int] | None = None
+        self.nozzle_centers: np.ndarray[tuple[float, float], np.dtype[np.float64]] | None = None
+        self.nozzle_center_nanos: np.ndarray[int, np.dtype[np.int64]] | None = None
 
         self.spray_box_publisher = self.create_publisher(SceneUpdate, 'debug_spray_boxes', 10)
 
@@ -355,6 +357,29 @@ class NozzleCommandDispatcher(Node):
 
         assert self.fboom_current is not None, 'fboom_current not initialized'
 
+        time_now: int = self.get_clock().now().nanoseconds
+        if (
+            self.nozzle_centers is None and self.nozzle_center_nanos is None
+        ) or (  # case where TF tree might have been unitialized on the first pass
+            self.nozzle_centers is not None and len(self.nozzle_centers) != len(nozzle_boxes_np)
+        ):
+            self.nozzle_centers = nozzle_boxes_np[:, :3]
+            self.nozzle_center_nanos = np.full(nozzle_boxes_np.shape[0], time_now, dtype=np.int64)
+
+            nozzle_velocities = np.zeros(nozzle_boxes_np.shape[0])
+        else:
+            assert self.nozzle_centers is not None and self.nozzle_center_nanos is not None
+
+            new_centers = nozzle_boxes_np[:, :3]
+            new_center_nanos = np.full(nozzle_boxes_np.shape[0], time_now, dtype=np.int64)
+
+            nozzle_velocities = np.linalg.norm(new_centers - self.nozzle_centers, axis=1) / (
+                new_center_nanos - self.nozzle_center_nanos
+            )
+
+            self.nozzle_centers = new_centers
+            self.nozzle_center_nanos = new_center_nanos
+
         boxes_unique, boxes_intersect = get_nozzle_box_intersections(nozzle_boxes_np)
         boxes_all: list[None | BoundingBox3D] = [None] * (
             boxes_unique.shape[0] + boxes_intersect.shape[0]
@@ -414,10 +439,21 @@ class NozzleCommandDispatcher(Node):
             if not (fboom_new[intersect] or fboom_new[intersect + 1]):
                 fboom_new[intersect] = 1
 
+        nozzle_duties = get_best_duty(
+            nozzle_info=SPOT_SPRAYER_INFO,
+            height_m=nozzle_boxes_np[:, 5],
+            speed_mps=nozzle_velocities,
+        )
+        nozzle_duty_commands = (nozzle_duties * 50).astype(np.uint8)
+
         for n in range(0, len(fboom_new)):
             # safety check the array access to avoid a random racey edge case
             if len(self.fboom_current) <= n or fboom_new[n] != self.fboom_current[n]:
-                self.command_publisher.publish(String(data=f'NSC{n}{fboom_new[n]}\n'))
+                self.command_publisher.publish(
+                    String(
+                        data=f'NSC{n}{nozzle_duty_commands[n] if fboom_new[n] == 1 else 0:02}\n'
+                    )
+                )
         self.fboom_current = fboom_new
 
 
