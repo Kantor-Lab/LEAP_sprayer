@@ -4,9 +4,11 @@ from typing import assert_never
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSHistoryPolicy, QoSProfile
 import serial
 from serial.tools import list_ports
-from std_msgs.msg import String
+
+from sprayer_interfaces.srv import SerialCommand
 
 
 def validate_cmd(cmd: str) -> bool:
@@ -125,8 +127,14 @@ class SpraySerialController(Node):
         time.sleep(2)
         self.get_logger().info('Arduino connected.')
 
-        self.subscription = self.create_subscription(
-            String, 'spraycommand', self.listener_callback, 10
+        self.service = self.create_service(
+            SerialCommand,
+            'spraycommand',
+            self.listener_callback,
+            qos_profile=QoSProfile(
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=10,
+            ),
         )
 
     def send_serialcmd(self, cmd: str):
@@ -137,13 +145,23 @@ class SpraySerialController(Node):
         else:
             print('Arduino message -- No ACK received. Timed out.')
 
-    def listener_callback(self, msg: String):
-        is_valid = validate_cmd(msg.data)
+    def listener_callback(
+        self, request: SerialCommand.Request, response: SerialCommand.Response
+    ) -> SerialCommand.Response:
+        is_valid = validate_cmd(request.command)
+
+        did_succeed: bool
 
         if is_valid:
-            self.send_serialcmd(msg.data)
+            self.send_serialcmd(request.command)
+            # TODO: set did_succeed based on serial response
+            did_succeed = True
         else:
-            self.get_logger().error(f'Invalid command: {msg.data}')
+            self.get_logger().error(f'Invalid command: {request.command}')
+            did_succeed = False
+
+        response.success = did_succeed
+        return response
 
     def destroy_node(self):
         if hasattr(self, 'serial') and self.ser.is_open:

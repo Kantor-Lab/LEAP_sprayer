@@ -6,8 +6,10 @@ from typing import cast
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from rclpy.qos import QoSHistoryPolicy, QoSProfile
 from vision_msgs.msg import Detection3D, Detection3DArray
+
+from sprayer_interfaces.srv import SerialCommand
 
 # Constants (measurements in meters)
 NUMNOZZLES = 4
@@ -45,7 +47,11 @@ class NozzleCommandDispatcher(Node):
         self.subscription = self.create_subscription(
             Detection3DArray, 'detections3D', self.listener_callback, 10
         )
-        self.command_publisher = self.create_publisher(String, 'spraycommand', 10)
+        self.command_client = self.create_client(
+            SerialCommand,
+            'spraycommand',
+            qos_profile=QoSProfile(history=QoSHistoryPolicy.KEEP_LAST, depth=10),
+        )
 
     def listener_callback(self, msg: Detection3DArray):
         fboom_new = [0] * NUMNOZZLES
@@ -64,7 +70,10 @@ class NozzleCommandDispatcher(Node):
 
         for n in range(0, len(fboom_new)):
             if fboom_new[n] != self.fboom_current[n]:
-                self.command_publisher.publish(String(data=f'NSC{n}{fboom_new[n]}\n'))
+                # no current need to handle failure, so won't listen for the result of the future
+                _ = self.command_client.call_async(
+                    SerialCommand.Request(command=f'NSC{n}{fboom_new[n]}\n')
+                )
         self.fboom_current = fboom_new
 
 

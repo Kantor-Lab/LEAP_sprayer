@@ -1,8 +1,11 @@
 from geometry_msgs.msg import Vector3
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import ColorRGBA, Header, String
+from rclpy.qos import QoSHistoryPolicy, QoSProfile
+from std_msgs.msg import ColorRGBA, Header
 from visualization_msgs.msg import Marker, MarkerArray
+
+from sprayer_interfaces.srv import SerialCommand
 
 from .serialcontroller import validate_cmd
 
@@ -22,8 +25,11 @@ class SpraySerialController(Node):
     def __init__(self):
         super().__init__('debug_spray_serial_controller')
 
-        self.subscription = self.create_subscription(
-            String, 'spraycommand', self.listener_callback, 10
+        self.service = self.create_service(
+            SerialCommand,
+            'spraycommand',
+            self.listener_callback,
+            qos_profile=QoSProfile(history=QoSHistoryPolicy.KEEP_LAST, depth=10),
         )
         self.markers_pub = self.create_publisher(MarkerArray, 'serial_nozzle_markers', 10)
 
@@ -44,62 +50,71 @@ class SpraySerialController(Node):
             for index in range(find_max_boom_index() + 1)
         ]
 
-    def listener_callback(self, msg: String):
-        is_valid = validate_cmd(msg.data)
+    def listener_callback(
+        self, request: SerialCommand.Request, response: SerialCommand.Response
+    ) -> SerialCommand.Response:
+        cmd = request.command
+        is_valid = validate_cmd(cmd)
 
         if not is_valid:
-            self.get_logger().error(f'Invalid command: {msg.data}')
-            return
+            self.get_logger().error(f'Invalid command: {cmd}')
+            response.success = False
+            return response
 
         try:
-            if msg.data[1] == 'X':
+            if cmd[1] == 'X':
                 self.nozzles[:] = ['◯'] * len(self.nozzles)
             else:
                 # backward compat
-                if msg.data[5] == '\n':
-                    if msg.data[4] == '0':
+                if cmd[5] == '\n':
+                    if cmd[4] == '0':
                         self.get_logger().warn(
-                            f'Probably received older message ({msg.data}),'
+                            f'Probably received older message ({cmd}),'
                             'backward compatibility not guaranteed in future'
                         )
-                        self.nozzles[int(msg.data[3])] = '◯'
-                        self.markers[int(msg.data[3])].action = Marker.DELETE
-                    elif msg.data[4] == '1':
+                        self.nozzles[int(cmd[3])] = '◯'
+                        self.markers[int(cmd[3])].action = Marker.DELETE
+                    elif cmd[4] == '1':
                         self.get_logger().warn(
-                            f'Probably received older message ({msg.data}),'
+                            f'Probably received older message ({cmd}),'
                             'backward compatibility not guaranteed in future'
                         )
-                        self.nozzles[int(msg.data[3])] = '⬤'
-                        self.markers[int(msg.data[3])].action = Marker.ADD
-                        self.markers[int(msg.data[3])].scale = Vector3(
+                        self.nozzles[int(cmd[3])] = '⬤'
+                        self.markers[int(cmd[3])].action = Marker.ADD
+                        self.markers[int(cmd[3])].scale = Vector3(
                             x=FULL_ON_NOZZLE_INDICATOR_SCALE,
                             y=FULL_ON_NOZZLE_INDICATOR_SCALE,
                             z=FULL_ON_NOZZLE_INDICATOR_SCALE,
                         )
                     else:
-                        raise ValueError(f'Invalid nozzle state: {msg.data[4]}')
-                elif msg.data[4] == '0' and msg.data[5] == '0':
-                    self.nozzles[int(msg.data[3])] = '◯'
-                    self.markers[int(msg.data[3])].action = Marker.DELETE
+                        raise ValueError(f'Invalid nozzle state: {cmd[4]}')
+                elif cmd[4] == '0' and cmd[5] == '0':
+                    self.nozzles[int(cmd[3])] = '◯'
+                    self.markers[int(cmd[3])].action = Marker.DELETE
                 else:
-                    rate = int(''.join(msg.data[4:6]))
+                    rate = int(''.join(cmd[4:6]))
                     if 0 < rate <= 50:
                         indicator_scale = FULL_ON_NOZZLE_INDICATOR_SCALE * rate / 50
-                        self.nozzles[int(msg.data[3])] = '⬤'
-                        self.markers[int(msg.data[3])].action = Marker.ADD
-                        self.markers[int(msg.data[3])].scale = Vector3(
+                        self.nozzles[int(cmd[3])] = '⬤'
+                        self.markers[int(cmd[3])].action = Marker.ADD
+                        self.markers[int(cmd[3])].scale = Vector3(
                             x=indicator_scale, y=indicator_scale, z=indicator_scale
                         )
                     else:
-                        raise ValueError(f'Invalid nozzle state: {msg.data[4]}')
+                        raise ValueError(f'Invalid nozzle state: {cmd[4]}')
 
-            self.get_logger().info(f'Sprayer state (cmd: {msg.data}): {" ".join(self.nozzles)}')
+            self.get_logger().info(f'Sprayer state (cmd: {cmd}): {" ".join(self.nozzles)}')
             now_msg = self.get_clock().now().to_msg()
             for i in range(len(self.markers)):
                 self.markers[i].header.stamp = now_msg
             self.markers_pub.publish(MarkerArray(markers=self.markers))
+
+            response.success = True
+            return response
         except (IndexError, ValueError):
-            self.get_logger().error(f'Failed to update nozzle state: {msg.data}')
+            self.get_logger().error(f'Failed to update nozzle state: {cmd}')
+            response.success = False
+            return response
 
 
 def main():
