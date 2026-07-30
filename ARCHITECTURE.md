@@ -117,7 +117,7 @@ It is documented below.
         <tr>
             <td rowspan="6">N</td>
             <td colspan="4">X</td>
-            <td rowspan="6"><code>\n</code></td>
+            <td rowspan="8"><code>\n</code></td>
             <td colspan="2">
                 Shut down controller. Reserved for internal use, do not send over ROS.
             </td>
@@ -154,6 +154,15 @@ It is documented below.
             <td colspan="2">
                 Broadcast sprayer. 🚧
             </td>
+        </tr>
+        <tr>
+            <td rowspan="2">P</td>
+            <td colspan="4">0</td>
+            <td colspan="2">Turn pump off</td>
+        </tr>
+        <tr>
+            <td colspan="4">1</td>
+            <td colspan="2">Turn pump on</td>
         </tr>
     </tbody>
 </table>

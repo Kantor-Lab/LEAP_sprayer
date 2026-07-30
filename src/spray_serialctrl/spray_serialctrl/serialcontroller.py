@@ -55,6 +55,12 @@ def validate_cmd(cmd: str) -> bool:
                         raise NotImplementedError('Broadcast sprayer is not yet supported')
                     case _:
                         return False
+            case 'P':
+                status = int(cmd[1])
+                if status == 0 or status == 1:
+                    return len(cmd) == len('P0\n')
+                else:
+                    return False
             case _:
                 return False
     # allows for safely indexing/extracting without having to put checks everywhere
