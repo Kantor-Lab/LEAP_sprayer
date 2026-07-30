@@ -58,7 +58,8 @@ graph TB
 
   subgraph sprayer[Spray Control]
     direction TB
-    spray_dispatch[Nozzle Command Dispatcher] -->|std_msgs/msg/String| spray_command[/"/spraycommand"/]
+    spray_dispatch[Nozzle Command Dispatcher] -->|command (std/msg/String)| spray_command(["/spraycommand"])
+    spray_command -->|success (std/msg/Bool)| spray_dispatch
     spray_control[Spray Serial Controller] -->|USB Serial Communication| uno(Arduino UNO)
     spray_command --> spray_control
     uno -->|I2C Communication| spray_driver_board_one(Driver Board 1)
