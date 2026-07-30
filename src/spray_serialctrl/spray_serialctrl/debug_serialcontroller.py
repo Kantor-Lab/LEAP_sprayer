@@ -50,6 +50,8 @@ class SpraySerialController(Node):
             for index in range(find_max_boom_index() + 1)
         ]
 
+        self.is_pump_on = False
+
     def listener_callback(
         self, request: SerialCommand.Request, response: SerialCommand.Response
     ) -> SerialCommand.Response:
@@ -59,6 +61,12 @@ class SpraySerialController(Node):
         if not is_valid:
             self.get_logger().error(f'Invalid command: {cmd}')
             response.success = False
+            return response
+
+        if cmd == 'P0\n' or cmd == 'P1\n':
+            self.get_logger().info(f'Turning pump {"on" if cmd[1] == "1" else "off"}')
+            self.is_pump_on = cmd[1] == '1'
+            response.success = True
             return response
 
         try:
@@ -79,6 +87,11 @@ class SpraySerialController(Node):
                             f'Probably received older message ({cmd}),'
                             'backward compatibility not guaranteed in future'
                         )
+                        if not self.is_pump_on:
+                            self.get_logger().error('Pump is off, but asked to spray')
+                            response.success = False
+                            return response
+
                         self.nozzles[int(cmd[3])] = '⬤'
                         self.markers[int(cmd[3])].action = Marker.ADD
                         self.markers[int(cmd[3])].scale = Vector3(
@@ -94,6 +107,11 @@ class SpraySerialController(Node):
                 else:
                     rate = int(''.join(cmd[4:6]))
                     if 0 < rate <= 50:
+                        if not self.is_pump_on:
+                            self.get_logger().error('Pump is off, but asked to spray')
+                            response.success = False
+                            return response
+
                         indicator_scale = FULL_ON_NOZZLE_INDICATOR_SCALE * rate / 50
                         self.nozzles[int(cmd[3])] = '⬤'
                         self.markers[int(cmd[3])].action = Marker.ADD
