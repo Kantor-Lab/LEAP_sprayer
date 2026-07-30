@@ -124,12 +124,12 @@ void spot_command() {
   } else {
     duty = buffer[4] - '0'; // backwards compatibility with 0/1 on-off commands
     duty *= MAX_DUTY_CYCLE; // convert to either 0 (off) or MAX_DUTY_CYCLE (fully on)
-    Serial.println("ACK: Received old on-off spot command");
+    send_response(STATUS, SYSTEM, "Received old spot command");
   }
   if (duty == 0) {
     mcp.digitalWrite(nozzle, LOW);
   } else if (duty > MAX_DUTY_CYCLE) {
-    Serial.println("Invalid duty cycle received for spot command");
+    send_response(ERROR, SYSTEM, "Invalid duty cycle received for spot command");
     return;
   }
   spot_nozzle_state[nozzle] = duty;
@@ -137,10 +137,7 @@ void spot_command() {
   // but integer math requires this ordering
   high_time[nozzle] = duty * SIGNAL_PERIOD / MAX_DUTY_CYCLE;
   low_time[nozzle] = SIGNAL_PERIOD - high_time[nozzle];
-  Serial.print("ACK: Set Spot Nozzle ");
-  Serial.print(nozzle);
-  Serial.print(" to ");
-  Serial.println(duty);
+  send_response(OK, SPOT, "Set Spot Nozzle");
 }
 
 void increment_pwm_nozzles() {
