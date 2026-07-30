@@ -66,6 +66,7 @@ graph TB
     uno -->|I2C Communication| spray_driver_board_two(Driver Board 2)
   end
   detections3D --> sprayer
+  spray_control -->|std/msg/Bool| tank_is_empty[/tank_is_empty/]
 ```
 
 ### The Camera

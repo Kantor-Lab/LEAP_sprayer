@@ -4,9 +4,10 @@ from typing import assert_never
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSHistoryPolicy, QoSProfile
+from rclpy.qos import DurabilityPolicy, QoSHistoryPolicy, QoSProfile, ReliabilityPolicy
 import serial
 from serial.tools import list_ports
+from std_msgs.msg import Bool
 
 from sprayer_interfaces.srv import SerialCommand
 
@@ -144,15 +145,34 @@ class SpraySerialController(Node):
             ),
         )
 
+        self.tank_is_empty_pub = self.create_publisher(
+            Bool,
+            'tank_is_empty',
+            # latches (publish one, keep it for anyone who arrives to immediately get)
+            qos_profile=QoSProfile(
+                depth=1,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                reliability=ReliabilityPolicy.RELIABLE,
+            ),
+        )
+
     def send_serialcmd(self, cmd: str) -> str | None:
         self.ser.write(cmd.encode('utf-8'))
-        serial_response = self.ser.readline().decode('utf-8').strip()
-        if serial_response:
-            print(f'Arduino message -- {serial_response}')
-            return serial_response
-        else:
-            print('Arduino message -- No ACK received. Timed out.')
-            return None
+        while True:
+            serial_response = self.ser.readline().decode('utf-8').strip()
+            if serial_response:
+                print(f'Arduino message -- {serial_response}')
+                # need to keep clearing out potentially multiple status messages
+                if serial_response[:4] != 'STAT':
+                    return serial_response
+                else:
+                    # check if the pump has run out
+                    # TODO: make this more robust and documented, probably by updating live_pwm
+                    if 'level' in serial_response:
+                        self.tank_is_empty_pub.publish(True)
+            else:
+                print('Arduino message -- No ACK received. Timed out.')
+                return None
 
     def listener_callback(
         self, request: SerialCommand.Request, response: SerialCommand.Response
@@ -168,6 +188,7 @@ class SpraySerialController(Node):
                 did_succeed = False
             else:
                 did_succeed = True
+                self.tank_is_empty_pub.publish(False)
         else:
             self.get_logger().error(f'Invalid command: {request.command}')
             did_succeed = False
