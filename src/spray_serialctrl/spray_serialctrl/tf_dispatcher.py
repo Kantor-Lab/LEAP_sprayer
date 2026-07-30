@@ -286,6 +286,8 @@ class NozzleCommandDispatcher(Node):
 
         self.spray_box_publisher = self.create_publisher(SceneUpdate, 'debug_spray_boxes', 10)
 
+        self.did_turn_on_pump = False
+
     def get_nozzle_boxes(self) -> AlignedBoundingBoxArray:
         """
         Returns an array of bounding boxes for the nozzles, in the odom frame.
@@ -453,6 +455,12 @@ class NozzleCommandDispatcher(Node):
         )
         nozzle_duty_commands = (nozzle_duties * 50).astype(np.uint8)
 
+        if not self.did_turn_on_pump and np.any(nozzle_duty_commands):
+            self.get_logger().info('Turning pump on')
+            future = self.command_client.call_async(SerialCommand.Request(command='P1\n'))
+            future.add_done_callback(self.command_response_callback)
+            self.did_turn_on_pump = True
+
         for n in range(0, len(fboom_new)):
             # safety check the array access to avoid a random racey edge case
             if len(self.fboom_current) <= n or fboom_new[n] != self.fboom_current[n]:
@@ -469,7 +477,7 @@ class NozzleCommandDispatcher(Node):
         assert response is not None, 'Command response is None'
         response = cast(SerialCommand.Response, response)
         if not response.success:
-            self.get_logger().error('Failed to update nozzle state for some reason')
+            self.get_logger().error('Command was invalid for some reason')
 
 
 def main():
