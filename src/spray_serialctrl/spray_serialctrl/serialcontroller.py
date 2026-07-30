@@ -124,6 +124,7 @@ class SpraySerialController(Node):
                 "but if you are setting that, it either wasn't available"
             )
         self.ser = ser
+        self.ser.timeout = 3.0  # wait up to 3 seconds for a full line response
         time.sleep(2)
         self.get_logger().info('Arduino connected.')
 
@@ -137,13 +138,15 @@ class SpraySerialController(Node):
             ),
         )
 
-    def send_serialcmd(self, cmd: str):
+    def send_serialcmd(self, cmd: str) -> str | None:
         self.ser.write(cmd.encode('utf-8'))
         serial_response = self.ser.readline().decode('utf-8').strip()
         if serial_response:
             print(f'Arduino message -- {serial_response}')
+            return serial_response
         else:
             print('Arduino message -- No ACK received. Timed out.')
+            return None
 
     def listener_callback(
         self, request: SerialCommand.Request, response: SerialCommand.Response
@@ -153,9 +156,12 @@ class SpraySerialController(Node):
         did_succeed: bool
 
         if is_valid:
-            self.send_serialcmd(request.command)
-            # TODO: set did_succeed based on serial response
-            did_succeed = True
+            cmd_response = self.send_serialcmd(request.command)
+
+            if cmd_response is None or len(cmd_response) < 4 or cmd_response[:5] == 'ERRO':
+                did_succeed = False
+            else:
+                did_succeed = True
         else:
             self.get_logger().error(f'Invalid command: {request.command}')
             did_succeed = False
