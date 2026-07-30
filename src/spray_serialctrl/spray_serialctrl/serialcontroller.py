@@ -164,7 +164,7 @@ class SpraySerialController(Node):
         if is_valid:
             cmd_response = self.send_serialcmd(request.command)
 
-            if cmd_response is None or len(cmd_response) < 4 or cmd_response[:5] == 'ERRO':
+            if cmd_response is None or len(cmd_response) < 4 or cmd_response[:4] == 'ERRO':
                 did_succeed = False
             else:
                 did_succeed = True
