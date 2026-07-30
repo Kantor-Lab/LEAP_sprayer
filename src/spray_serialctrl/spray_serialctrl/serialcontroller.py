@@ -179,6 +179,8 @@ class SpraySerialController(Node):
         if hasattr(self, 'serial') and self.ser.is_open:
             self.ser.write(b'NX\n')
             self.get_logger().info('Reset all nozzles')
+            self.ser.write(b'P0\n')
+            self.get_logger().info('Pump off')
             self.ser.close()
             self.get_logger().info('Serial port closed')
 
