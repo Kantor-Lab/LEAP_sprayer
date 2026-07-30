@@ -14,6 +14,10 @@ unsigned int low_time[NUM_SPOT]; // pwm low duration in ms
 int spot_pulse_state[NUM_SPOT]; // short term record of where solenoid is in PWM cycle
 int spot_nozzle_state[NUM_SPOT]; // record of which spot solenoids are on/off
 
+int lowtank_warnings = 0;
+const int lowtank_limit = 3; // need three low tank warnings before turning pump off. 
+unsigned long previous_tankcheck = 0;
+bool pump_state = false;  
 
 void poweroff_command() {
   Serial.print("Turning everything off");
@@ -21,6 +25,43 @@ void poweroff_command() {
   mcp.digitalWrite(1, LOW);
   mcp.digitalWrite(2, LOW); 
   mcp.digitalWrite(3, LOW); 
+}
+
+void pump_command() {
+  int state = buffer[1] - '0';
+  if (state == 1) {
+    if (lowtank_warnings < lowtank_limit) {
+      digitalWrite(A1, HIGH); // pump is connected to pin A1
+      pump_state = true; 
+      Serial.println("ACK: Pump turned on.");
+    } else {
+      Serial.println("Water level low. Pump cannot be turned on.");
+    }
+  } else if (state == 0) {
+    digitalWrite(A1, LOW);
+    pump_state = false;
+    Serial.println("ACK: Pump turned off.");
+  } else {
+    Serial.println("Invalid pump state received");
+  }
+}
+
+void tanklevel_check() {
+  unsigned long current_time = millis();
+  if (current_time - previous_tankcheck > 1000) {
+    if (digitalRead(A3) == 0) {
+      lowtank_warnings++;
+    } else {
+      lowtank_warnings = 0;
+    }
+    previous_tankcheck = current_time;
+  }
+  if (lowtank_warnings >= lowtank_limit && pump_state) {
+    digitalWrite(A1, LOW);
+    poweroff_command();
+    pump_state = false;
+    Serial.println("Tank level low. Pump and all nozzles turned off.");
+  } 
 }
 
 void spot_command() {
@@ -88,13 +129,17 @@ void loop() {
   
     char command = buffer[0]; // N(Nozzle), P(Pump)
     if (command == 'P') { // PUMP
-      Serial.println("Pump command");
+      pump_command();
     } else if (command == 'N') { // NOZZLE
-      char nozzletype = buffer[1]; // S(Spot) or B(Broadcast) or X(turn all off)
+      char nozzletype = buffer[1]; // S(Spot) or X(turn all off)
       if (nozzletype == 'X') { // X: all nozzles off command
         poweroff_command();
       } else if (nozzletype == 'S') { // S: spot spray command
-        spot_command();
+        if (pump_state) {
+          spot_command();
+        } else {
+          Serial.println("Pump off due to low water level. Cannot send nozzle command.");
+        }
       } else {
         Serial.println("Invalid nozzle command received");
       }
@@ -103,4 +148,5 @@ void loop() {
     }
   }
   increment_pwm_nozzles(); 
+  tanklevel_check();
 }
