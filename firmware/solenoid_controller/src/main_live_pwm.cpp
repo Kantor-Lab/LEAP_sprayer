@@ -111,7 +111,7 @@ void tanklevel_check() {
     digitalWrite(A1, LOW);
     poweroff_command();
     pump_state = false;
-    send_response(STATUS, SYSTEM, "Water level low, all nozzles shut down")
+    send_response(STATUS, SYSTEM, "Water level low, all nozzles shut down");
   } 
 }
 
