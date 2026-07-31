@@ -457,6 +457,9 @@ class NozzleCommandDispatcher(Node):
 
         if not self.did_turn_on_pump and np.any(nozzle_duty_commands):
             self.get_logger().info('Turning pump on')
+            while not self.command_client.wait_for_service(timeout_sec=1.0):
+                self.get_logger().info('Command service not available yet, waiting...')
+                
             future = self.command_client.call_async(SerialCommand.Request(command='P1\n'))
             future.add_done_callback(self.command_response_callback)
             self.did_turn_on_pump = True
