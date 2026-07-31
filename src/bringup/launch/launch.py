@@ -148,6 +148,15 @@ def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
                     arguments=[],
                 )
             )
+        case 'deduplicate' | 'dedup':
+            tracker_nodes.append(
+                Node(
+                    package='tracking',
+                    executable='deduplicate_tracker',
+                    name='deduplicate_tracker',
+                    arguments=[],
+                )
+            )
         case _:
             raise ValueError(f'Invalid tracker choice: {tracker_choice}')
 
