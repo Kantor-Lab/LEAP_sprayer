@@ -14,13 +14,105 @@ unsigned int low_time[NUM_SPOT]; // pwm low duration in ms
 int spot_pulse_state[NUM_SPOT]; // short term record of where solenoid is in PWM cycle
 int spot_nozzle_state[NUM_SPOT]; // record of which spot solenoids are on/off
 
+int lowtank_warnings = 0;
+const int lowtank_limit = 3; // need three low tank warnings before turning pump off. 
+unsigned long previous_tankcheck = 0;
+bool pump_state = false;  
+
+enum ResponseMessageStatus {
+    OK,
+    ERROR,
+    STATUS,
+};
+
+enum ResponseMessageSource {
+    SYSTEM, // for things like invalid commands, library checks
+    SPOT,   // related to the spot sprayer
+    PUMP,   // related to pump, including pump too low
+};
+
+void send_response(ResponseMessageStatus status, ResponseMessageSource source, const char* message) {
+  // confirm message is valid (no newlines allowed)
+  const char* curr = message;
+  while (*curr != '\0') {
+    if (*curr == '\n') {
+      send_response(ERROR, SYSTEM, "invalid response attempted, message contains newline");
+      return;
+    }
+    curr++;
+  }
+
+  switch (status) {
+    case OK:
+      Serial.print("OKAY ");
+      break;
+    case ERROR:
+      Serial.print("ERRO ");
+      break;
+    case STATUS:
+      Serial.print("STAT ");
+      break;
+  }
+
+  switch (source) {
+    case SYSTEM:
+      Serial.print("(SYST): ");
+      break;
+    case SPOT:
+      Serial.print("(SPOT): ");
+      break;
+    case PUMP:
+      Serial.print("(PUMP): ");
+      break;
+  }
+
+  Serial.print(message);
+  Serial.println(); // must newline terminate messages so listener knows it's ended
+}
 
 void poweroff_command() {
-  Serial.print("Turning everything off");
+  send_response(OK, SYSTEM, "Turning everything off");
   mcp.digitalWrite(0, LOW); 
   mcp.digitalWrite(1, LOW);
   mcp.digitalWrite(2, LOW); 
   mcp.digitalWrite(3, LOW); 
+}
+
+void pump_command() {
+  int state = buffer[1] - '0';
+  if (state == 1) {
+    if (lowtank_warnings < lowtank_limit) {
+      digitalWrite(A1, HIGH); // pump is connected to pin A1
+      pump_state = true; 
+      send_response(OK, PUMP, "Turned on");
+    } else {
+      send_response(ERROR, PUMP, "Water level too low");
+    }
+  } else if (state == 0) {
+    digitalWrite(A1, LOW);
+    pump_state = false;
+    send_response(OK, PUMP, "Turned off");
+  } else {
+    send_response(ERROR, SYSTEM, "Invalid pump state");
+  }
+}
+
+void tanklevel_check() {
+  unsigned long current_time = millis();
+  if (current_time - previous_tankcheck > 1000) {
+    if (digitalRead(A3) == 0) {
+      lowtank_warnings++;
+    } else {
+      lowtank_warnings = 0;
+    }
+    previous_tankcheck = current_time;
+  }
+  if (lowtank_warnings >= lowtank_limit && pump_state) {
+    digitalWrite(A1, LOW);
+    poweroff_command();
+    pump_state = false;
+    send_response(STATUS, SYSTEM, "Water level low, all nozzles shut down")
+  } 
 }
 
 void spot_command() {
@@ -32,12 +124,12 @@ void spot_command() {
   } else {
     duty = buffer[4] - '0'; // backwards compatibility with 0/1 on-off commands
     duty *= MAX_DUTY_CYCLE; // convert to either 0 (off) or MAX_DUTY_CYCLE (fully on)
-    Serial.println("ACK: Received old on-off spot command");
+    send_response(STATUS, SYSTEM, "Received old spot command");
   }
   if (duty == 0) {
     mcp.digitalWrite(nozzle, LOW);
   } else if (duty > MAX_DUTY_CYCLE) {
-    Serial.println("Invalid duty cycle received for spot command");
+    send_response(ERROR, SYSTEM, "Invalid duty cycle received for spot command");
     return;
   }
   spot_nozzle_state[nozzle] = duty;
@@ -45,10 +137,7 @@ void spot_command() {
   // but integer math requires this ordering
   high_time[nozzle] = duty * SIGNAL_PERIOD / MAX_DUTY_CYCLE;
   low_time[nozzle] = SIGNAL_PERIOD - high_time[nozzle];
-  Serial.print("ACK: Set Spot Nozzle ");
-  Serial.print(nozzle);
-  Serial.print(" to ");
-  Serial.println(duty);
+  send_response(OK, SPOT, "Set Spot Nozzle");
 }
 
 void increment_pwm_nozzles() {
@@ -72,7 +161,7 @@ void setup() {
   Serial.begin(115200);
   Serial.setTimeout(10);
   if (!mcp.begin_I2C()) {
-    Serial.println("Couldn't find MCP23017..");
+    send_response(ERROR, SYSTEM, "Couldn't find MCP23017");
     while (1);
   }
   mcp.pinMode(0, OUTPUT);
@@ -88,19 +177,24 @@ void loop() {
   
     char command = buffer[0]; // N(Nozzle), P(Pump)
     if (command == 'P') { // PUMP
-      Serial.println("Pump command");
+      pump_command();
     } else if (command == 'N') { // NOZZLE
-      char nozzletype = buffer[1]; // S(Spot) or B(Broadcast) or X(turn all off)
+      char nozzletype = buffer[1]; // S(Spot) or X(turn all off)
       if (nozzletype == 'X') { // X: all nozzles off command
         poweroff_command();
       } else if (nozzletype == 'S') { // S: spot spray command
-        spot_command();
+        if (pump_state) {
+          spot_command();
+        } else {
+          send_response(ERROR, PUMP, "Pump off, cannot send nozzle command");
+        }
       } else {
-        Serial.println("Invalid nozzle command received");
+        send_response(ERROR, SYSTEM, "Invalid nozzle command received");
       }
     } else {
-      Serial.println("Invalid serial comamnd received");
+        send_response(ERROR, SYSTEM, "Invalid serial command received");
     }
   }
   increment_pwm_nozzles(); 
+  tanklevel_check();
 }

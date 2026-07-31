@@ -4,9 +4,12 @@ from typing import assert_never
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSHistoryPolicy, QoSProfile, ReliabilityPolicy
 import serial
 from serial.tools import list_ports
-from std_msgs.msg import String
+from std_msgs.msg import Bool
+
+from sprayer_interfaces.srv import SerialCommand
 
 
 def validate_cmd(cmd: str) -> bool:
@@ -53,6 +56,12 @@ def validate_cmd(cmd: str) -> bool:
                         raise NotImplementedError('Broadcast sprayer is not yet supported')
                     case _:
                         return False
+            case 'P':
+                status = int(cmd[1])
+                if status == 0 or status == 1:
+                    return len(cmd) == len('P0\n')
+                else:
+                    return False
             case _:
                 return False
     # allows for safely indexing/extracting without having to put checks everywhere
@@ -122,33 +131,77 @@ class SpraySerialController(Node):
                 "but if you are setting that, it either wasn't available"
             )
         self.ser = ser
+        self.ser.timeout = 3.0  # wait up to 3 seconds for a full line response
         time.sleep(2)
         self.get_logger().info('Arduino connected.')
 
-        self.subscription = self.create_subscription(
-            String, 'spraycommand', self.listener_callback, 10
+        self.service = self.create_service(
+            SerialCommand,
+            'spraycommand',
+            self.listener_callback,
+            qos_profile=QoSProfile(
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=10,
+            ),
         )
 
-    def send_serialcmd(self, cmd: str):
-        self.ser.write(cmd.encode('utf-8'))
-        serial_response = self.ser.readline().decode('utf-8').strip()
-        if serial_response:
-            print(f'Arduino message -- {serial_response}')
-        else:
-            print('Arduino message -- No ACK received. Timed out.')
+        self.tank_is_empty_pub = self.create_publisher(
+            Bool,
+            'tank_is_empty',
+            # latches (publish one, keep it for anyone who arrives to immediately get)
+            qos_profile=QoSProfile(
+                depth=1,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                reliability=ReliabilityPolicy.RELIABLE,
+            ),
+        )
 
-    def listener_callback(self, msg: String):
-        is_valid = validate_cmd(msg.data)
+    def send_serialcmd(self, cmd: str) -> str | None:
+        self.ser.write(cmd.encode('utf-8'))
+        while True:
+            serial_response = self.ser.readline().decode('utf-8').strip()
+            if serial_response:
+                print(f'Arduino message -- {serial_response}')
+                # need to keep clearing out potentially multiple status messages
+                if serial_response[:4] != 'STAT':
+                    return serial_response
+                else:
+                    # check if the pump has run out
+                    # TODO: make this more robust and documented, probably by updating live_pwm
+                    if 'level' in serial_response:
+                        self.tank_is_empty_pub.publish(True)
+            else:
+                print('Arduino message -- No ACK received. Timed out.')
+                return None
+
+    def listener_callback(
+        self, request: SerialCommand.Request, response: SerialCommand.Response
+    ) -> SerialCommand.Response:
+        is_valid = validate_cmd(request.command)
+
+        did_succeed: bool
 
         if is_valid:
-            self.send_serialcmd(msg.data)
+            cmd_response = self.send_serialcmd(request.command)
+
+            if cmd_response is None or len(cmd_response) < 4 or cmd_response[:4] == 'ERRO':
+                did_succeed = False
+            else:
+                did_succeed = True
+                self.tank_is_empty_pub.publish(False)
         else:
-            self.get_logger().error(f'Invalid command: {msg.data}')
+            self.get_logger().error(f'Invalid command: {request.command}')
+            did_succeed = False
+
+        response.success = did_succeed
+        return response
 
     def destroy_node(self):
         if hasattr(self, 'serial') and self.ser.is_open:
             self.ser.write(b'NX\n')
             self.get_logger().info('Reset all nozzles')
+            self.ser.write(b'P0\n')
+            self.get_logger().info('Pump off')
             self.ser.close()
             self.get_logger().info('Serial port closed')
 

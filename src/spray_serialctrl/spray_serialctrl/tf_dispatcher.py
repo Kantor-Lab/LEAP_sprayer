@@ -19,7 +19,7 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from rclpy.qos import QoSHistoryPolicy, QoSProfile
 import tf2_geometry_msgs
 import tf2_ros
 from vision_msgs.msg import (
@@ -28,6 +28,8 @@ from vision_msgs.msg import (
     Detection3DArray,
 )
 import yaml
+
+from sprayer_interfaces.srv import SerialCommand
 
 from .util import compute_sprayer_footprint, get_best_duty, SPOT_SPRAYER_INFO
 
@@ -272,13 +274,19 @@ class NozzleCommandDispatcher(Node):
         self.subscription = self.create_subscription(
             Detection3DArray, 'detections3D', self.listener_callback, 10
         )
-        self.command_publisher = self.create_publisher(String, 'spraycommand', 10)
+        self.command_client = self.create_client(
+            SerialCommand,
+            'spraycommand',
+            qos_profile=QoSProfile(history=QoSHistoryPolicy.KEEP_LAST, depth=10),
+        )
 
         self.fboom_current: list[int] | None = None
         self.nozzle_centers: np.ndarray[tuple[float, float], np.dtype[np.float64]] | None = None
         self.nozzle_center_nanos: np.ndarray[int, np.dtype[np.int64]] | None = None
 
         self.spray_box_publisher = self.create_publisher(SceneUpdate, 'debug_spray_boxes', 10)
+
+        self.did_turn_on_pump = False
 
     def get_nozzle_boxes(self) -> AlignedBoundingBoxArray:
         """
@@ -447,15 +455,29 @@ class NozzleCommandDispatcher(Node):
         )
         nozzle_duty_commands = (nozzle_duties * 50).astype(np.uint8)
 
+        if not self.did_turn_on_pump and np.any(nozzle_duty_commands):
+            self.get_logger().info('Turning pump on')
+            future = self.command_client.call_async(SerialCommand.Request(command='P1\n'))
+            future.add_done_callback(self.command_response_callback)
+            self.did_turn_on_pump = True
+
         for n in range(0, len(fboom_new)):
             # safety check the array access to avoid a random racey edge case
             if len(self.fboom_current) <= n or fboom_new[n] != self.fboom_current[n]:
-                self.command_publisher.publish(
-                    String(
-                        data=f'NSC{n}{nozzle_duty_commands[n] if fboom_new[n] == 1 else 0:02}\n'
+                future = self.command_client.call_async(
+                    SerialCommand.Request(
+                        command=f'NSC{n}{nozzle_duty_commands[n] if fboom_new[n] == 1 else 0:02}\n'
                     )
                 )
+                future.add_done_callback(self.command_response_callback)
         self.fboom_current = fboom_new
+
+    def command_response_callback(self, future: rclpy.Future):
+        response = future.result()
+        assert response is not None, 'Command response is None'
+        response = cast(SerialCommand.Response, response)
+        if not response.success:
+            self.get_logger().error('Command was invalid for some reason')
 
 
 def main():
