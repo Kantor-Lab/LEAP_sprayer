@@ -169,7 +169,7 @@ class SpraySerialController(Node):
                     # check if the pump has run out
                     # TODO: make this more robust and documented, probably by updating live_pwm
                     if 'level' in serial_response:
-                        self.tank_is_empty_pub.publish(True)
+                        self.tank_is_empty_pub.publish(Bool(data=True))
             else:
                 print('Arduino message -- No ACK received. Timed out.')
                 return None
@@ -188,7 +188,7 @@ class SpraySerialController(Node):
                 did_succeed = False
             else:
                 did_succeed = True
-                self.tank_is_empty_pub.publish(False)
+                self.tank_is_empty_pub.publish(Bool(data=False))
         else:
             self.get_logger().error(f'Invalid command: {request.command}')
             did_succeed = False
