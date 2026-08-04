@@ -19,6 +19,12 @@ const int lowtank_limit = 3; // need three low tank warnings before turning pump
 unsigned long previous_tankcheck = 0;
 bool pump_state = false;  
 
+enum BoomID {
+    LEFT,
+    RIGHT,
+    CENTER,
+};
+
 enum ResponseMessageStatus {
     OK,
     ERROR,
@@ -78,23 +84,20 @@ void poweroff_command() {
   mcp.digitalWrite(3, LOW); 
 }
 
-void pump_command() {
-  int state = buffer[1] - '0';
-  if (state == 1) {
+void pump_on() {
     if (lowtank_warnings < lowtank_limit) {
       digitalWrite(A1, HIGH); // pump is connected to pin A1
       pump_state = true; 
       send_response(OK, PUMP, "Turned on");
     } else {
       send_response(ERROR, PUMP, "Water level too low");
-    }
-  } else if (state == 0) {
-    digitalWrite(A1, LOW);
-    pump_state = false;
-    send_response(OK, PUMP, "Turned off");
-  } else {
-    send_response(ERROR, SYSTEM, "Invalid pump state");
-  }
+    } 
+}
+
+void pump_off() {
+  digitalWrite(A1, LOW);
+  pump_state = false;
+  send_response(OK, PUMP, "Turned off");
 }
 
 void tanklevel_check() {
@@ -115,29 +118,29 @@ void tanklevel_check() {
   } 
 }
 
-void spot_command() {
-  char boomID = buffer[2]; // L(eft), R(ight), C(enter)
-  int nozzle = buffer[3] - '0'; // 0,1,2,3
-  int duty; 
-  if (buffer[5] != '\0') { // duty cycle is two digits
-    duty = (buffer[4] - '0')*10 + (buffer[5] - '0'); // [0, MAX_DUTY_CYCLE] duty
-  } else {
-    duty = buffer[4] - '0'; // backwards compatibility with 0/1 on-off commands
-    duty *= MAX_DUTY_CYCLE; // convert to either 0 (off) or MAX_DUTY_CYCLE (fully on)
-    send_response(STATUS, SYSTEM, "Received old spot command");
-  }
-  if (duty == 0) {
-    mcp.digitalWrite(nozzle, LOW);
-  } else if (duty > MAX_DUTY_CYCLE) {
-    send_response(ERROR, SYSTEM, "Invalid duty cycle received for spot command");
-    return;
-  }
-  spot_nozzle_state[nozzle] = duty;
-  // really (duty / MAX_DUTY_CYCLE) * SIGNAL_PERIOD,
-  // but integer math requires this ordering
-  high_time[nozzle] = duty * SIGNAL_PERIOD / MAX_DUTY_CYCLE;
-  low_time[nozzle] = SIGNAL_PERIOD - high_time[nozzle];
-  send_response(OK, SPOT, "Set Spot Nozzle");
+void spot_command(BoomID boomID, unsigned int nozzle, unsigned int duty) {
+    if (!(
+        boomID == CENTER // only support center boom for now
+        && nozzle < 4 // only support 4 nozzles for now
+        && duty <= MAX_DUTY_CYCLE
+    )) {
+        send_response(ERROR, SYSTEM, "Internal error while handling spot command");
+        return;
+    }
+    
+    if (duty == 0) {
+      mcp.digitalWrite(nozzle, LOW);
+    } else if (pump_state == false) { // fine to turn off nozzles with pump off
+      send_response(ERROR, PUMP, "Pump off, cannot send nozzle command");
+      return;
+    }
+    
+    spot_nozzle_state[nozzle] = duty;
+    // really (duty / MAX_DUTY_CYCLE) * SIGNAL_PERIOD,
+    // but integer math requires this ordering
+    high_time[nozzle] = duty * SIGNAL_PERIOD / MAX_DUTY_CYCLE;
+    low_time[nozzle] = SIGNAL_PERIOD - high_time[nozzle];
+    send_response(OK, SPOT, "Set Spot Nozzle");
 }
 
 void increment_pwm_nozzles() {
@@ -155,6 +158,97 @@ void increment_pwm_nozzles() {
       }
     } 
   }
+}
+
+void handle_command(const char* const cmd, size_t read_len) {
+    if (!(cmd != nullptr) || !(cmd[read_len] == '\0')) {
+        send_response(ERROR, SYSTEM, "Internal error while parsing command");
+        return;
+    }
+    if (read_len == 0) return;
+
+    switch (cmd[0]) {
+        case 'N':
+            switch (cmd[1]) {
+                case 'X': {
+                    if (cmd[2] != '\0') goto invalid_command;
+                    poweroff_command();
+                    break;
+                } // case 'X'
+                case 'S':
+                    switch (cmd[2]) {
+                        case 'C': {
+                            unsigned char nozzle_num = (unsigned char) cmd[3] - '0';
+                            if (nozzle_num > 3) goto invalid_command;
+
+                            unsigned int nozzle_state;
+                            if (cmd[5] == '\0') { // backwards compatibility with older format (0/1)
+                                unsigned char old_nozzle_state = (unsigned char) cmd[4] - '0';
+                                
+                                if (old_nozzle_state > 1)
+                                    goto invalid_command;
+                                
+                                send_response(STATUS, SYSTEM, "Received old spot command");
+                                nozzle_state = old_nozzle_state * MAX_DUTY_CYCLE;
+                                
+                            } else if (cmd[6] == '\0') { // check only two digits
+                                unsigned int digit_first = (unsigned int) cmd[4] - '0';
+                                unsigned int digit_second = (unsigned int) cmd[5] - '0';
+
+                                if (digit_first > 9 || digit_second > 9)
+                                    goto invalid_command;
+                                
+                                nozzle_state = digit_first * 10 + digit_second;
+                                
+                                if (nozzle_state > MAX_DUTY_CYCLE)
+                                    goto invalid_command;
+                                
+                            } else { // more than two digits
+                                goto invalid_command;
+                            }
+                            spot_command(CENTER, nozzle_num, nozzle_state);
+                            
+                            break;
+                        } // case 'C'
+                        case 'L': // left and right spray booms
+                        case 'R':
+                            goto not_implemented_command;
+                        default:
+                            goto invalid_command;
+                    }
+                    break;
+                case 'B': // broadcast sprayer, not implemented
+                    goto not_implemented_command;
+                default:
+                    goto invalid_command;
+            }
+            break;
+        case 'P': {
+            unsigned char status = (unsigned char) cmd[1] - '0';
+            
+            if (status == 0) {
+                pump_off();
+            } else if (status == 1) {
+                pump_on();
+            } else {
+                goto invalid_command;
+            }
+            
+            break;
+        } // case 'P'
+        default:
+            goto invalid_command;
+    }
+
+    return;
+
+    not_implemented_command:
+    send_response(ERROR, SYSTEM, "Command not implemented");
+    return;
+    
+    invalid_command:
+    send_response(ERROR, SYSTEM, "Invalid serial command received");
+    return;
 }
 
 void setup() {
@@ -175,25 +269,7 @@ void loop() {
     int bytesRead = Serial.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
     buffer[bytesRead] = '\0';
   
-    char command = buffer[0]; // N(Nozzle), P(Pump)
-    if (command == 'P') { // PUMP
-      pump_command();
-    } else if (command == 'N') { // NOZZLE
-      char nozzletype = buffer[1]; // S(Spot) or X(turn all off)
-      if (nozzletype == 'X') { // X: all nozzles off command
-        poweroff_command();
-      } else if (nozzletype == 'S') { // S: spot spray command
-        if (pump_state) {
-          spot_command();
-        } else {
-          send_response(ERROR, PUMP, "Pump off, cannot send nozzle command");
-        }
-      } else {
-        send_response(ERROR, SYSTEM, "Invalid nozzle command received");
-      }
-    } else {
-        send_response(ERROR, SYSTEM, "Invalid serial command received");
-    }
+    handle_command(buffer, bytesRead);
   }
   increment_pwm_nozzles(); 
   tanklevel_check();
