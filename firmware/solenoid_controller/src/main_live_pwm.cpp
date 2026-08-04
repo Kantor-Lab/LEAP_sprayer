@@ -268,6 +268,11 @@ void loop() {
   if (Serial.available() > 0) {
     int bytesRead = Serial.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
     buffer[bytesRead] = '\0';
+
+    if (bytesRead > 1 && buffer[bytesRead - 1] == '\r') {
+        send_response(STATUS, SYSTEM, "Received CRLF line ending, handling but should be avoided");
+        buffer[--bytesRead] = '\0';
+    }
   
     handle_command(buffer, bytesRead);
   }
