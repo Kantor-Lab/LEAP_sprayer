@@ -111,6 +111,13 @@ cmd = """
     platformio run -e {{ board + '_' + controller }} {% if do_upload == 'upload' %}--target upload{% endif %}
     """
 
+[feature.firmware.tasks.serial-connect]
+default-environment = "firmware"
+cmd = """
+    cd firmware/solenoid_controller/ && \
+    pio device monitor --echo
+    """
+
 [feature.check.dependencies]
 ruff = "*"
 
