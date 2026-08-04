@@ -262,6 +262,8 @@ void setup() {
   mcp.pinMode(1, OUTPUT);
   mcp.pinMode(2, OUTPUT);
   mcp.pinMode(3, OUTPUT);
+  pinMode(A1, OUTPUT);  // pump pin = A1
+  pinMode(A3, INPUT); // tank level sensor = A3
 }
 
 void loop() {
