@@ -40,7 +40,7 @@ cmd = """
       --no-warn-unused-cli
 """
 inputs = ["src"]
-outputs = ["build", "install"]
+outputs = ["install/"]
 
 [tasks.launch]
 # We source install/setup.sh inside the launch shell (rather than relying only
