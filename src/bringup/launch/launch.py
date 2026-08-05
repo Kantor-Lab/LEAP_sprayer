@@ -189,15 +189,6 @@ def select_nozzle_dispatcher(
     nozzle_dispatcher_nodes: list[LaunchDescriptionEntity] = []
 
     match nozzle_dispatcher_choice:
-        case 'hardcoded':
-            nozzle_dispatcher_nodes.append(
-                Node(
-                    package='spray_serialctrl',
-                    executable='dispatcher',
-                    name='nozzle_command_dispatcher',
-                    arguments=[],
-                )
-            )
         case 'tf':
             nozzle_dispatcher_nodes.append(
                 Node(
@@ -282,7 +273,7 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument('detector', default_value='owl'),
             DeclareLaunchArgument('projector', default_value='basic'),
             DeclareLaunchArgument('tracker', default_value='debug'),
-            DeclareLaunchArgument('nozzle_dispatcher', default_value='hardcoded'),
+            DeclareLaunchArgument('nozzle_dispatcher', default_value='tf'),
             DeclareLaunchArgument('nozzle_controller', default_value='debug'),
             Node(
                 package='rqt_image_view',
