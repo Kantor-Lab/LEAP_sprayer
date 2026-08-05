@@ -99,7 +99,7 @@ class DeduplicateTracker(Node):
                     + [new_box],
                     new_box,
                 )
-                self.boxes.append((merge_result, best_merge_score))
+                self.boxes.append((merge_result, best_merge_score + 3))
                 self.boxes = [val for idx, val in enumerate(self.boxes) if idx not in to_merge]
             else:
                 merge_result = new_box
