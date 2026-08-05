@@ -39,7 +39,11 @@ cmd = """
       -Wno-dev \
       --no-warn-unused-cli
 """
-inputs = ["src"]
+inputs = [
+		"src/**",
+		"!src/**/__pycache__/*",
+		"!src/**/*.pyc", # compiled python files, typically in caches
+]
 outputs = ["install/"]
 
 [tasks.launch]
