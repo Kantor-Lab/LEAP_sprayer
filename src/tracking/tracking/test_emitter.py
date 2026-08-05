@@ -41,6 +41,7 @@ AlignedBoundingBox: typing.TypeAlias = np.ndarray[float, np.dtype[np.float64]]
 # represented as [[center1_x, center1_y, center1_z, length1, width1, height1], ...]
 AlignedBoundingBoxArray: typing.TypeAlias = np.ndarray[tuple[float, float], np.dtype[np.float64]]
 
+
 def np_to_bbox_list(bboxes: AlignedBoundingBoxArray) -> list[BoundingBox3D]:
     assert bboxes.shape[1] == 6, (
         'bboxes must be a 2D array with 6 columns'
@@ -106,7 +107,9 @@ class BoxPublisher(Node):
                 self.get_logger().warn(f'TF not available yet: {e}')
                 return
 
-            new_boxes: AlignedBoundingBoxArray = np.empty((self.random.integers(0, WEED_SPAWN_COUNT), 6), dtype=np.float64)
+            new_boxes: AlignedBoundingBoxArray = np.empty(
+                (self.random.integers(0, WEED_SPAWN_COUNT), 6), dtype=np.float64
+            )
 
             # x values
             new_boxes[:, 0] = self.random.normal(
@@ -115,10 +118,8 @@ class BoxPublisher(Node):
                 size=len(new_boxes),
             )
             # y values
-            new_boxes[:, 1] = (
-                self.random.random(size=len(new_boxes)) - 0.5
-            ) * DIST_WIDTH
-            
+            new_boxes[:, 1] = (self.random.random(size=len(new_boxes)) - 0.5) * DIST_WIDTH
+
             # shape values
             new_boxes[:, 3:] = self.random.normal(
                 loc=0.05, scale=0.01, size=(len(new_boxes), 3)
@@ -128,7 +129,9 @@ class BoxPublisher(Node):
             new_boxes[:, 2] = new_boxes[:, 5] / 2
 
             self.boxes = np.vstack((self.boxes, new_boxes))
-            self.box_timestamps = np.concatenate((self.box_timestamps, np.full(len(new_boxes), now.nanoseconds)))
+            self.box_timestamps = np.concatenate(
+                (self.box_timestamps, np.full(len(new_boxes), now.nanoseconds))
+            )
 
         boxes_rand = np.copy(self.boxes)
         boxes_rand += self.random.normal(0, 0.02, boxes_rand.shape)
@@ -136,12 +139,14 @@ class BoxPublisher(Node):
         boxes_rand[:, 3:] = boxes_rand[:, 3:].clip(min=0.01)
 
         bbox3d_rand = np_to_bbox_list(boxes_rand)
-        
+
         # x, y, z, w
         quats_rand = np.empty((len(bbox3d_rand), 4))
         quats_rand[:, 0:3] = self.random.uniform(-0.05, 0.05, (len(bbox3d_rand), 3))
-        quats_rand[:, 3] = np.sqrt(1.0 - quats_rand[:, 0] ** 2 - quats_rand[:, 1] ** 2 - quats_rand[:, 2] ** 2)
-        
+        quats_rand[:, 3] = np.sqrt(
+            1.0 - quats_rand[:, 0] ** 2 - quats_rand[:, 1] ** 2 - quats_rand[:, 2] ** 2
+        )
+
         for i in range(len(bbox3d_rand)):
             x, y, z, w = quats_rand[i]
             bbox3d_rand[i].center.orientation.x = x
@@ -161,9 +166,10 @@ class BoxPublisher(Node):
                 ),
                 results=[ObjectHypothesisWithPose()],
                 bbox=bbox,
-            ) for bbox, stamp_nano in zip(bbox3d_rand, self.box_timestamps, strict=True)
+            )
+            for bbox, stamp_nano in zip(bbox3d_rand, self.box_timestamps, strict=True)
         ]
-        
+
         self.box_pub.publish(boxes_msg)
 
 

@@ -136,12 +136,12 @@ def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
             GroupAction(
                 actions=[
                     SetRemap(src='/detections3D', dst='/detections3D_raw'),
-            Node(
-                package='tracking',
-                executable='test_emitter',
-                name='test_tracker',
-                arguments=[],
-            )
+                    Node(
+                        package='tracking',
+                        executable='test_emitter',
+                        name='test_tracker',
+                        arguments=[],
+                    ),
                 ]
             )
         )
