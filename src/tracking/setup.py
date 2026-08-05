@@ -21,6 +21,7 @@ setup(
         'console_scripts': [
             'test_emitter = tracking.test_emitter:main',
             'extrapolate_tracker = tracking.extrapolate_tracker:main',
+            'deduplicate_tracker = tracking.deduplicate_tracker:main',
             'constant_velocity_odom = tracking.constant_velocity_odom:main',
         ],
     },

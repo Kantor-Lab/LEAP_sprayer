@@ -129,7 +129,27 @@ def select_projector(projector_choice: str) -> list[LaunchDescriptionEntity]:
 def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
     tracker_nodes: list[LaunchDescriptionEntity] = []
 
-    match tracker_choice:
+    # debug_* will start the test emitter as the input source
+    # to the given tracker
+    if tracker_choice.startswith('debug_'):
+        tracker_nodes.append(
+            GroupAction(
+                actions=[
+                    SetRemap(src='/detections3D', dst='/detections3D_raw'),
+                    Node(
+                        package='tracking',
+                        executable='test_emitter',
+                        name='test_tracker',
+                        arguments=[],
+                    ),
+                ]
+            )
+        )
+        real_tracker_choice = tracker_choice[6:]
+    else:
+        real_tracker_choice = tracker_choice
+
+    match real_tracker_choice:
         case 'debug' | 'test':
             tracker_nodes.append(
                 Node(
@@ -145,6 +165,15 @@ def select_tracker(tracker_choice: str) -> list[LaunchDescriptionEntity]:
                     package='tracking',
                     executable='extrapolate_tracker',
                     name='extrapolate_tracker',
+                    arguments=[],
+                )
+            )
+        case 'deduplicate' | 'dedup':
+            tracker_nodes.append(
+                Node(
+                    package='tracking',
+                    executable='deduplicate_tracker',
+                    name='deduplicate_tracker',
                     arguments=[],
                 )
             )
