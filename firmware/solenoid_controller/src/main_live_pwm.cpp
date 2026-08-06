@@ -84,10 +84,10 @@ void send_response(ResponseMessageStatus status, ResponseMessageSource source,
 
 void poweroff_command() {
   send_response(OK, SYSTEM, "Turning everything off");
-  mcp.digitalWrite(0, LOW);
-  mcp.digitalWrite(1, LOW);
-  mcp.digitalWrite(2, LOW);
-  mcp.digitalWrite(3, LOW);
+  for (int n = 0; n < NUM_SPOT; n++) {
+    high_time[n] = 0;
+    mcp.digitalWrite(n, LOW);
+  }
 }
 
 void pump_on() {
