@@ -252,4 +252,4 @@ A build (via `pixi run build`) may be required before full checking support is a
 
 For other editors or checkers,
 I recommend exploring how to mimic the contents of that configuration,
-as a cursory search suggests it should be possible in PyCharm or in other checkers like [`ty`](https://docs.astral.sh/ty/).
+as a cursory search suggests it should be possible in PyCharm or in other checkers like [ty](https://docs.astral.sh/ty/).
