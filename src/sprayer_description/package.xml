@@ -3,7 +3,7 @@
 <package format="3">
   <name>sprayer_description</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Includes URDF describing sprayer system</description>
   <maintainer email="180982968+PS6195@users.noreply.github.com">billy</maintainer>
   <license>TODO: License declaration</license>
 

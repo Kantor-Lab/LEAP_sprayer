@@ -3,7 +3,7 @@
 <package format="3">
   <name>tracking</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Tracks detected bounding boxes over time</description>
   <maintainer email="evanfost@andrew.cmu.edu">Evan</maintainer>
   <maintainer email="cczhang@andrew.cmu.edu">Chloe Zhang</maintainer>
   <license>TODO: License declaration</license>

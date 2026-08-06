@@ -3,7 +3,7 @@
 <package format="3">
   <name>foxglove_compat</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Provides visualization tools for use with Foxglove or other viewers</description>
   <maintainer email="evanfost@andrew.cmu.edu">Evan</maintainer>
   <license>TODO: License declaration</license>
 

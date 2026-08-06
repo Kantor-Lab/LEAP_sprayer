@@ -3,7 +3,7 @@
 <package format="3">
   <name>spray_serialctrl</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Handles communication and control of the sprayer</description>
   <maintainer email="cczhang@andrew.cmu.edu">Chloe Zhang</maintainer>
   <license>Apache-2.0</license>
   
