@@ -5,7 +5,7 @@ package_name = 'camera'
 setup(
     name=package_name,
     version='0.0.0',
-    packages=find_packages(exclude=['test']),
+    packages=find_packages(),
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
@@ -16,7 +16,6 @@ setup(
     maintainer_email='evanfost@andrew.cmu.edu',
     description='A collection of several camera nodes that can be used for weed detection',
     license='TODO: License declaration',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': ['debug_camera = camera.debug_camera:main'],
     },
