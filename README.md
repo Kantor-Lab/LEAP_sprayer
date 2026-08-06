@@ -69,7 +69,7 @@ because they will declare a `depends-on` for the build command.
 Builds are cached when running this commands, so if no changes are made to the `src` folder,
 no build will have to be run.
 
-To launch the system, run
+To launch the system (for simulation/testing), run
 ```bash
 pixi run launch
 ```
@@ -83,16 +83,41 @@ pixi run launch camera:=realsense
 The `launch` task supports the following arguments:
 - `camera`: the camera to use
 - `detector`: the detector to use for detecting weeds
+- `projector`: the algorithm to use when converting 2D bounding boxes to 3D ones
+- `tracker`: the algorithm to use for tracking detected bounding boxes over time
+  - `debug` will just override all tracking and directly emit debug boxes
+  - `dedup` (real, but rough tracking) and `extrapolate` (just reemitting all known boxes)
+    can be paired with `debug_` (e.g. `debug_dedup` is default) to run the debug emitter
+    and pipe it through the given tracker
+- `nozzle_dispatcher`: the system that chooses which nozzle(s) to turn on to hit bounding boxes
+- `nozzle_controller`: service to send nozzle commands to actual hardware (or not, for testing)
+- `debug_odom`: (`true`/`false`) whether to emit a constant velocity via a transform between `odom` and `sprayer_base`
 - `image_viewer`: (`true`/`false`) whether to launch the RQT image viewer
 - `foxglove`: (`true`/`false`) whether to launch the Foxglove bridge
+  - This also starts visualization tools for some of the bounding boxes, so may be useful to enable
+    when creating a Rosbag
+    (see [launch.py](https://github.com/Kantor-Lab/LEAP_sprayer/blob/c97d1a9d570d7d130b9d65dbd3fdb3fb7ca1d716/src/bringup/launch/launch.py#L293-L331) for more details on what is launched)
 
-Additionally, `camera:=debug` will read from the `DEBUG_CAMERA_PORT` environment variable if set.
-This gets passed to OpenCV's `VideoCapture` constructor, so it can be used to specify the camera device to use when testing.
-Something like
+To start up on the real robot, run
 ```bash
-DEBUG_CAMERA_PORT=1 pixi run launch
+pixi run launch-live
 ```
-should do the trick.
+which is equivalent to
+```bash
+pixi run launch camera:=realsense nozzle_controller:=arduino tracker:=dedup
+```
+
+Several of these options will read environment variables for on-the-fly customization.
+You can customize them by doing something like
+```bash
+DEBUG_CAMERA_PORT=1 RANDOM_SEED=42 pixi run launch
+```
+
+- `DEBUG_CAMERA_PORT`: the port number for the [debug camera node](./src/camera/camera/debug_camera.py) to use
+- `ARDUINO_PORT`: the port identifier for the [live serial controller node](./src/spray_serialctrl/spray_serialctrl/serialcontroller.py) to find the Arduino on
+- `CONSTANT_VELO`: an identifier in a format like `0.25,+X` (0.25 m/s in the positive x direction) used by the [constant velocity odometry](./src/tracking/tracking/constant_velocity_odom.py)
+- `GROUND_Z_HEIGHT`: also used by constant velocity odometry to determine how much to translate the `sprayer_base` frame above the `odom` frame
+- `RANDOM_SEED`: used by the [test emitter](./src/tracking/tracking/test_emitter.py) to seed its random number generator, allowing for reproducible results (it will tell you what seed it uses at startup)
 
 If you need to do additional work in the shell, run
 ```bash
@@ -114,11 +139,18 @@ To build firmware without going through this, run
 pixi run build-firmware [controller] [upload|no_upload] [uno|nano]
 ```
 
-There are currently two controllers implemented
+There are currently three controllers implemented
 (corresponding to PlatformIO environments in [`firmware/solenoid_controller/platformio.ini`](./firmware/solenoid_controller/platformio.ini))
-* `live`: actually communicates with the real solenoid drivers
+* `live_pwm`: communicates with real solenoid drivers and emits PWM signals
+* `live`: communicates with the real solenoid drivers (old)
 * `test_led`: triggers leds from PWMs 2–4 for testing purposes
 <!--TODO: include more info on what specifically each does-->
+
+You can test the serial controller manually by connecting over USB and running
+```bash
+pixi run serial-connect
+```
+to give you a prompt where you can input commands and send them to the Arduino.
 
 ## Supported platforms
 
@@ -176,3 +208,48 @@ It should now be available whenever you run commands via `pixi run` or in the `p
 pixi run pkg-create my_package my_node
 ```
 This will create a new node named `my_node` in the `my_package` package.
+
+### Formatting/linting
+
+Instead of using flake8 like most ROS2 projects,
+for speed and reproducibility this project uses [Ruff](https://astral.sh/ruff).
+
+It is configured to closely match the style guide used by most ROS2 projects,
+see [`ruff.toml`](./ruff.toml) for more details.
+
+```bash
+pixi run check
+```
+
+will check your code for formatting and linting errors.
+
+```bash
+pixi run check fix
+```
+
+will automatically fix any fixable errors in formatting or linting.
+
+You can also run with more options if you want to only lint or only format
+
+```bash
+pixi run check [fix|no_fix] [reformat|no_reformat]
+```
+
+where no args is equivalent to `no_fix` and `no_reformat`
+and only `fix` is equivalent to `fix` and `reformat`.
+
+### Type checking
+
+You will almost certainly need to point your LSP at the Python installation
+that is pulled in after running `pixi install`.
+This will probably be `.pixi/envs/default/bin/python3.11`.
+
+While there is not type checking support bundled with the repo,
+it does include a [`pyrightconfig.json`](./pyrightconfig.json),
+which will allow Pyright (default for VS Code and Zed) to discover
+some necessary interfaces for type checking.
+A build (via `pixi run build`) may be required before full checking support is available.
+
+For other editors or checkers,
+I recommend exploring how to mimic the contents of that configuration,
+as a cursory search suggests it should be possible in PyCharm or in other checkers like [`ty`](https://docs.astral.sh/ty/).
