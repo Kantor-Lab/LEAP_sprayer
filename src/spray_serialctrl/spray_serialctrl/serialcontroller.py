@@ -128,7 +128,7 @@ class SpraySerialController(Node):
             raise ConnectionError(
                 'Failed to find an Arduino to connect to.'
                 "The 'ARDUINO_PORT' environment variable may be useful to specify the port, "
-                "but if you are setting that, it either wasn't available"
+                "but if you are setting that, it wasn't available"
             )
         self.ser = ser
         self.ser.timeout = 3.0  # wait up to 3 seconds for a full line response
