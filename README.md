@@ -168,7 +168,7 @@ based on where development occurs on it and where it is deployed.
 > and provide proper code completion and linting.
 > Intel Realsense is known to be incredibly buggy and often not work at all
 > on macOS, but we include versions of libraries so that message types
-> are available.
+> are available. ([relevant](https://github.com/Kantor-Lab/LEAP_sprayer/commit/f1f5494))
 
 ### Other platforms
 
