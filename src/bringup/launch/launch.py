@@ -272,7 +272,7 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument('camera', default_value='debug'),
             DeclareLaunchArgument('detector', default_value='owl'),
             DeclareLaunchArgument('projector', default_value='basic'),
-            DeclareLaunchArgument('tracker', default_value='debug'),
+            DeclareLaunchArgument('tracker', default_value='debug_dedup'),
             DeclareLaunchArgument('nozzle_dispatcher', default_value='tf'),
             DeclareLaunchArgument('nozzle_controller', default_value='debug'),
             Node(
