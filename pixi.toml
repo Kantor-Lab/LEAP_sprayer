@@ -47,26 +47,12 @@ inputs = [
 outputs = ["install/"]
 
 [tasks.launch]
-# We source install/setup.sh inside the launch shell (rather than relying only
-# on the `sourced` environment's activation) so that DYLD_LIBRARY_PATH is set in
-# this process before ros2 is exec'd. On macOS, SIP strips DYLD_* from the env
-# pixi hands to activated tasks, so locally-built rosidl packages'
-# introspection typesupport libs (e.g. libsprayer_interfaces__rosidl_typesupport
-# _introspection_c.dylib, dlopen'd by bare name by the RMW) would not be found
-# and nodes using the custom service would die with "type_support is null".
-# Sourcing here re-populates DYLD_LIBRARY_PATH in-process; because ros2/python is
-# not SIP-protected the value survives to the launched nodes. Harmless on Linux.
-#
-# The trailing `"$@"' _` forwards any extra args pixi appends (e.g.
-# `pixi run launch nozzle_dispatcher:=tf foxglove:=true`) through to ros2 launch.
-# pixi appends them after the whole command, so they arrive as args to `bash -c`;
-# the `_` is a throwaway $0 so the real launch args line up as $1.. for "$@".
-cmd = """
-{% if not pixi.is_linux %}\
-echo \"WARNING: not all features work on non-Linux platforms\" && \
-{% endif %}\
-bash -c 'source install/setup.sh && ros2 launch bringup launch.py \"$@\"' _
-"""
+cmd = "bash scripts/launch.sh"
+depends-on = [{task = "build"}]
+default-environment = "sourced"
+
+[tasks.launch-live]
+cmd = "bash scripts/launch.sh camera:=realsense tracker:=dedup nozzle_controller:=arduino"
 depends-on = [{task = "build"}]
 default-environment = "sourced"
 
