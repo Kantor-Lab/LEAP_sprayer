@@ -17,13 +17,6 @@ from launch_ros.descriptions.composable_node import IfCondition
 from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 
 
-class CameraOutputs:
-    def __init__(self, color_image_topic: str, depth_image_topic: str, info_topic: str):
-        self.color_image_topic = color_image_topic
-        self.depth_image_topic = depth_image_topic
-        self.info_topic = info_topic
-
-
 def select_camera(camera_choice: str) -> list[LaunchDescriptionEntity]:
 
     camera_nodes: list[LaunchDescriptionEntity] = []
